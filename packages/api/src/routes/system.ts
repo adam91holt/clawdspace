@@ -25,6 +25,31 @@ function formatUptime(seconds: number): string {
   return `${days}d ${hours}h ${mins}m`;
 }
 
+// Detect GPU capabilities
+async function detectGPU(): Promise<{ hasGPU: boolean; gpuName?: string; gpuMemory?: string }> {
+  try {
+    // Try nvidia-smi in various locations
+    const nvidiaSmiPaths = [
+      'nvidia-smi',
+      '/usr/bin/nvidia-smi',
+      '/usr/lib/wsl/lib/nvidia-smi'
+    ];
+    
+    for (const path of nvidiaSmiPaths) {
+      try {
+        const { stdout } = await execAsync(`${path} --query-gpu=name,memory.total --format=csv,noheader`, { timeout: 5000 });
+        const [name, memory] = stdout.trim().split(',').map(s => s.trim());
+        return { hasGPU: true, gpuName: name, gpuMemory: memory };
+      } catch {
+        continue;
+      }
+    }
+  } catch {
+    // No GPU
+  }
+  return { hasGPU: false };
+}
+
 // GET /system - System stats
 router.get('/', async (_req: Request, res: Response) => {
   try {
@@ -35,6 +60,9 @@ router.get('/', async (_req: Request, res: Response) => {
     
     // Docker info
     const dockerInfo = await docker.getDockerInfo();
+    
+    // GPU detection
+    const gpu = await detectGPU();
     
     // Disk usage
     let diskUsage: SystemInfo['disk'] = null;
@@ -74,7 +102,35 @@ router.get('/', async (_req: Request, res: Response) => {
       }
     };
     
-    res.json(systemInfo);
+    // Add capabilities
+    const capabilities = {
+      gpu: gpu.hasGPU,
+      gpuName: gpu.gpuName,
+      gpuMemory: gpu.gpuMemory,
+      arch: os.arch(),
+      platform: os.platform()
+    };
+    
+    res.json({ ...systemInfo, capabilities });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// GET /system/capabilities - Just capabilities
+router.get('/capabilities', async (_req: Request, res: Response) => {
+  try {
+    const gpu = await detectGPU();
+    
+    res.json({
+      gpu: gpu.hasGPU,
+      gpuName: gpu.gpuName,
+      gpuMemory: gpu.gpuMemory,
+      arch: os.arch(),
+      platform: os.platform(),
+      cpus: os.cpus().length,
+      memory: os.totalmem()
+    });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
