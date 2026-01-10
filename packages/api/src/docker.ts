@@ -157,11 +157,9 @@ export async function execInSpace(name: string, command: string | string[]): Pro
   let stderr = '';
   
   await new Promise<void>((resolve, reject) => {
-    docker.modem.demuxStream(
-      stream, 
-      { write: (chunk: Buffer) => { stdout += chunk.toString(); return true; } },
-      { write: (chunk: Buffer) => { stderr += chunk.toString(); return true; } }
-    );
+    const stdoutStream = { write: (chunk: unknown) => { stdout += String(chunk); return true; } };
+    const stderrStream = { write: (chunk: unknown) => { stderr += String(chunk); return true; } };
+    docker.modem.demuxStream(stream, stdoutStream as NodeJS.WritableStream, stderrStream as NodeJS.WritableStream);
     stream.on('end', resolve);
     stream.on('error', reject);
   });
