@@ -34,10 +34,11 @@ export const mockDocker = {
     return mockSpaces.get(container.name)!;
   }),
 
-  createSpace: vi.fn(async (name: string, memory: string = '2g', cpus: number = 1): Promise<Space> => {
+  createSpace: vi.fn(async (name: string, memory: string = '2g', cpus: number = 1, gpu: boolean = false, image?: string): Promise<Space> => {
     const space = createMockSpace(name, {
       memory: parseMemory(memory),
-      cpus
+      cpus,
+      image: image || (gpu ? 'pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime' : 'clawdspace:latest')
     });
     mockSpaces.set(name, space);
     return space;
