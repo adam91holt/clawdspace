@@ -159,6 +159,9 @@ export async function execInSpace(name: string, command: string | string[]): Pro
     await container.unpause();
   }
   
+  // Use the same user the container was created with
+  const user = info.Config.User || 'root';
+  
   // Parse command
   const cmd = Array.isArray(command) ? command : ['sh', '-c', command];
   
@@ -166,7 +169,7 @@ export async function execInSpace(name: string, command: string | string[]): Pro
     Cmd: cmd,
     AttachStdout: true,
     AttachStderr: true,
-    User: 'sandbox'
+    User: user
   });
   
   const stream = await exec.start({});
