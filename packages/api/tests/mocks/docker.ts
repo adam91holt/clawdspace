@@ -1,0 +1,114 @@
+import { vi } from 'vitest';
+import { Space, ExecResult } from '../../src/types';
+
+// In-memory store for mock spaces
+export const mockSpaces = new Map<string, Space>();
+
+// Mock space factory
+export function createMockSpace(name: string, overrides: Partial<Space> = {}): Space {
+  return {
+    name,
+    id: Math.random().toString(36).substring(2, 14),
+    status: 'running',
+    created: new Date().toISOString(),
+    started: new Date().toISOString(),
+    image: 'clawdspace:latest',
+    memory: 2 * 1024 * 1024 * 1024,
+    cpus: 1,
+    lastActivity: new Date().toISOString(),
+    ...overrides
+  };
+}
+
+// Mock docker functions
+export const mockDocker = {
+  listSpaces: vi.fn(async (): Promise<Space[]> => {
+    return Array.from(mockSpaces.values());
+  }),
+
+  getContainer: vi.fn(async (name: string) => {
+    return mockSpaces.has(name) ? { name } : null;
+  }),
+
+  formatSpace: vi.fn(async (container: { name: string }): Promise<Space> => {
+    return mockSpaces.get(container.name)!;
+  }),
+
+  createSpace: vi.fn(async (name: string, memory: string = '2g', cpus: number = 1): Promise<Space> => {
+    const space = createMockSpace(name, {
+      memory: parseMemory(memory),
+      cpus
+    });
+    mockSpaces.set(name, space);
+    return space;
+  }),
+
+  destroySpace: vi.fn(async (name: string): Promise<void> => {
+    if (!mockSpaces.has(name)) throw new Error('Space not found');
+    mockSpaces.delete(name);
+  }),
+
+  stopSpace: vi.fn(async (name: string): Promise<void> => {
+    const space = mockSpaces.get(name);
+    if (!space) throw new Error('Space not found');
+    space.status = 'paused';
+  }),
+
+  startSpace: vi.fn(async (name: string): Promise<void> => {
+    const space = mockSpaces.get(name);
+    if (!space) throw new Error('Space not found');
+    space.status = 'running';
+    space.lastActivity = new Date().toISOString();
+  }),
+
+  execInSpace: vi.fn(async (name: string, command: string | string[]): Promise<ExecResult> => {
+    const space = mockSpaces.get(name);
+    if (!space) throw new Error('Space not found');
+    
+    // Auto-unpause on exec
+    if (space.status === 'paused') {
+      space.status = 'running';
+    }
+    space.lastActivity = new Date().toISOString();
+    
+    // Simulate command execution
+    const cmd = Array.isArray(command) ? command.join(' ') : command;
+    return {
+      stdout: `Mock output for: ${cmd}`,
+      stderr: '',
+      exitCode: 0
+    };
+  }),
+
+  getDockerInfo: vi.fn(async () => ({
+    ServerVersion: '24.0.0',
+    Containers: mockSpaces.size,
+    ContainersRunning: Array.from(mockSpaces.values()).filter(s => s.status === 'running').length,
+    ContainersPaused: Array.from(mockSpaces.values()).filter(s => s.status === 'paused').length,
+    Images: 1
+  })),
+
+  getLastActivity: vi.fn((name: string) => mockSpaces.get(name)?.lastActivity),
+  setLastActivity: vi.fn(),
+  deleteLastActivity: vi.fn(),
+  startAutoSleepWorker: vi.fn(() => setInterval(() => {}, 60000))
+};
+
+function parseMemory(str: string): number {
+  const match = str.match(/^(\d+)(g|m|k)?$/i);
+  if (!match) return 2 * 1024 * 1024 * 1024;
+  const num = parseInt(match[1]);
+  const unit = (match[2] || 'm').toLowerCase();
+  const multipliers: Record<string, number> = { k: 1024, m: 1024 * 1024, g: 1024 * 1024 * 1024 };
+  return num * (multipliers[unit] || 1);
+}
+
+// Reset mocks between tests
+export function resetMocks() {
+  mockSpaces.clear();
+  Object.values(mockDocker).forEach(fn => {
+    if (typeof fn === 'function' && 'mockClear' in fn) {
+      fn.mockClear();
+    }
+  });
+}

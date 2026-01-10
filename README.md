@@ -163,6 +163,7 @@ CLAWDSPACE_KEY="your_api_key"
 
 ```bash
 cd packages/api
+npm install
 npm run dev  # Watch mode
 ```
 
@@ -170,8 +171,41 @@ npm run dev  # Watch mode
 
 ```bash
 cd packages/web
+npm install
 npm run dev  # Vite dev server
 ```
+
+## Testing
+
+### Unit Tests (mocked Docker)
+
+```bash
+cd packages/api
+npm test              # Run once
+npm run test:watch    # Watch mode
+npm run test:coverage # With coverage
+```
+
+### Integration Tests (requires Docker)
+
+```bash
+# Build the sandbox image first
+docker build -t clawdspace:latest -f docker/Dockerfile .
+
+# Run with Docker enabled
+TEST_DOCKER=true npm test
+```
+
+### Test Coverage
+
+Tests cover:
+- ✅ API endpoints (CRUD operations)
+- ✅ Space lifecycle (create → exec → stop → start → destroy)
+- ✅ Input validation (names, parameters)
+- ✅ Error handling (404s, conflicts)
+- ✅ Command execution (stdout, stderr, exit codes)
+- ✅ Auto-resume on exec
+- ✅ Memory parsing
 
 ## Deployment
 
