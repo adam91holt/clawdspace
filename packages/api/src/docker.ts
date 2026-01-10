@@ -77,22 +77,40 @@ export function parseMemory(str: string): number {
 export async function createSpace(
   name: string, 
   memory: string = '2g', 
-  cpus: number = 1
+  cpus: number = 1,
+  gpu: boolean = false,
+  image?: string
 ): Promise<Space> {
   const memoryBytes = parseMemory(memory);
   const nanoCpus = cpus * 1e9;
   
+  // Use GPU image if requested and no custom image specified
+  const useImage = image || (gpu ? (process.env.CLAWDSPACE_GPU_IMAGE || 'pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime') : IMAGE);
+  
+  const hostConfig: Docker.HostConfig = {
+    Memory: memoryBytes,
+    NanoCpus: nanoCpus,
+    RestartPolicy: { Name: 'unless-stopped' }
+  };
+  
+  // Add GPU support if requested
+  if (gpu) {
+    hostConfig.DeviceRequests = [{
+      Driver: '',
+      Count: -1,  // All GPUs
+      DeviceIDs: [],
+      Capabilities: [['gpu']],
+      Options: {}
+    }];
+  }
+  
   const container = await docker.createContainer({
-    Image: IMAGE,
+    Image: useImage,
     name: `${PREFIX}${name}`,
     Hostname: name,
-    User: 'sandbox',
-    WorkingDir: '/home/sandbox',
-    HostConfig: {
-      Memory: memoryBytes,
-      NanoCpus: nanoCpus,
-      RestartPolicy: { Name: 'unless-stopped' }
-    },
+    User: gpu ? 'root' : 'sandbox',  // PyTorch image needs root
+    WorkingDir: gpu ? '/workspace' : '/home/sandbox',
+    HostConfig: hostConfig,
     Cmd: ['sleep', 'infinity']
   });
   

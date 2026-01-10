@@ -17,7 +17,7 @@ router.get('/', async (_req: Request, res: Response) => {
 // POST /spaces - Create space
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { name, memory = '2g', cpus = 1 } = req.body as CreateSpaceRequest;
+    const { name, memory = '2g', cpus = 1, gpu = false, image } = req.body as CreateSpaceRequest & { gpu?: boolean; image?: string };
     
     if (!name || !/^[a-zA-Z0-9_-]+$/.test(name)) {
       return res.status(400).json({ error: 'Invalid name (alphanumeric, _, - only)' });
@@ -29,7 +29,7 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(409).json({ error: 'Space already exists' });
     }
     
-    const space = await docker.createSpace(name, memory, cpus);
+    const space = await docker.createSpace(name, memory, cpus, gpu, image);
     res.status(201).json({ space });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
