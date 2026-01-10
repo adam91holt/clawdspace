@@ -1,74 +1,182 @@
-#!/bin/bash
-# clawdspace - CLI for Clawdspace API
+#!/usr/bin/env bash
+# clawdspace - CLI for Clawdspace API (Multi-Server with Auto-Discovery)
 
 set -e
 
 # Configuration
 CONFIG_FILE="$HOME/.clawdspace"
-if [ -f "$CONFIG_FILE" ]; then
-  source "$CONFIG_FILE"
-fi
+CACHE_FILE="$HOME/.clawdspace-servers"
+CACHE_TTL=300  # 5 minutes
 
-API_URL="${CLAWDSPACE_URL:-http://oracle:7777}"
 API_KEY="${CLAWDSPACE_KEY:-clawdspace_sk_live_7f8a9b2c3d4e5f6g}"
+DEFAULT_PORT=7777
+
+# Known hosts to probe (add your Tailscale IPs/hostnames here)
+KNOWN_HOSTS="${CLAWDSPACE_HOSTS:-100.67.131.19 100.64.248.29 oracle wsl rtx3090}"
 
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+if [ -f "$CONFIG_FILE" ]; then
+  source "$CONFIG_FILE"
+fi
 
 usage() {
-  echo "clawdspace - Self-hosted sandboxed execution environments"
+  echo "clawdspace - Multi-server sandboxed execution environments"
   echo ""
   echo "Usage:"
-  echo "  clawdspace create <name> [--memory 2g] [--cpus 1]"
-  echo "  clawdspace list"
+  echo "  clawdspace create <name> [--server <server>] [--memory 2g] [--cpus 1]"
+  echo "  clawdspace list [--server <server>]"
   echo "  clawdspace exec <name> <command>"
   echo "  clawdspace stop <name>"
   echo "  clawdspace start <name>"
-  echo "  clawdspace destroy <name>"
-  echo "  clawdspace status <name>"
-  echo "  clawdspace system"
-  echo "  clawdspace dashboard"
-  echo "  clawdspace config <url> <key>"
+  echo "  clawdspace destroy <name> [-f]"
+  echo "  clawdspace servers [--refresh]      # List/discover servers"
+  echo "  clawdspace system [--server <server>]"
+  echo "  clawdspace config"
   echo ""
-  echo "Examples:"
-  echo "  clawdspace create dev"
-  echo "  clawdspace exec dev 'python3 --version'"
-  echo "  clawdspace stop dev"
-  echo ""
-  echo "Config file: $CONFIG_FILE"
+  echo "Servers are auto-discovered from known hosts."
+  echo "Set CLAWDSPACE_HOSTS in ~/.clawdspace to add more."
 }
 
+# Discover Clawdspace servers by probing known hosts
+discover_servers() {
+  local refresh="$1"
+  
+  # Check cache
+  if [ -z "$refresh" ] && [ -f "$CACHE_FILE" ]; then
+    local cache_age=$(($(date +%s) - $(stat -f %m "$CACHE_FILE" 2>/dev/null || stat -c %Y "$CACHE_FILE" 2>/dev/null || echo 0)))
+    if [ "$cache_age" -lt "$CACHE_TTL" ]; then
+      cat "$CACHE_FILE"
+      return
+    fi
+  fi
+  
+  local servers=""
+  
+  # Probe known hosts
+  for host in $KNOWN_HOSTS; do
+    # Try the host as-is
+    local url="http://$host:$DEFAULT_PORT"
+    local result=$(curl -s --connect-timeout 0.5 "$url/api/health" 2>/dev/null)
+    
+    if echo "$result" | grep -q '"ok"'; then
+      # Get hostname from system endpoint
+      local sys=$(curl -s --connect-timeout 1 "$url/api/system" -H "Authorization: Bearer $API_KEY" 2>/dev/null)
+      local name=$(echo "$sys" | python3 -c "import sys,json; print(json.load(sys.stdin).get('hostname','$host'))" 2>/dev/null || echo "$host")
+      name=$(echo "$name" | tr '[:upper:]' '[:lower:]')
+      servers="$servers $name=$url"
+    fi
+  done
+  
+  # Cache results
+  echo "$servers" | tr ' ' '\n' | grep '=' | sort -u | tr '\n' ' ' > "$CACHE_FILE"
+  cat "$CACHE_FILE"
+}
+
+# Get all known servers
+get_servers() {
+  discover_servers "$1"
+}
+
+# Get server URL by name
+get_server_url() {
+  local name="$1"
+  local servers=$(get_servers)
+  
+  for entry in $servers; do
+    local srv_name="${entry%%=*}"
+    local srv_url="${entry#*=}"
+    if [ "$srv_name" = "$name" ]; then
+      echo "$srv_url"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# List all server names
+get_server_names() {
+  local servers=$(get_servers)
+  for entry in $servers; do
+    [ -n "$entry" ] && echo "${entry%%=*}"
+  done
+}
+
+# Get first available server
+get_default_server() {
+  get_server_names | head -1
+}
+
+# API call to specific server
 api() {
-  local method="$1"
-  local path="$2"
-  local data="$3"
+  local server="$1"
+  local method="$2"
+  local path="$3"
+  local data="$4"
+  local url=$(get_server_url "$server")
+  
+  if [ -z "$url" ]; then
+    echo -e "${RED}Unknown server: $server${NC}" >&2
+    return 1
+  fi
   
   if [ -n "$data" ]; then
-    curl -s -X "$method" "$API_URL/api$path" \
+    curl -s -X "$method" "$url/api$path" \
       -H "Authorization: Bearer $API_KEY" \
       -H "Content-Type: application/json" \
-      -d "$data"
+      -d "$data" 2>/dev/null
   else
-    curl -s -X "$method" "$API_URL/api$path" \
-      -H "Authorization: Bearer $API_KEY"
+    curl -s -X "$method" "$url/api$path" \
+      -H "Authorization: Bearer $API_KEY" 2>/dev/null
   fi
 }
 
-cmd_create() {
+# Find which server has a space
+find_space() {
   local name="$1"
+  for srv in $(get_server_names); do
+    result=$(api "$srv" GET "/spaces/$name" 2>/dev/null)
+    if echo "$result" | grep -q '"name"'; then
+      echo "$srv"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Find server with GPU
+find_gpu_server() {
+  for srv in $(get_server_names); do
+    local url=$(get_server_url "$srv")
+    local caps=$(curl -s --connect-timeout 2 "$url/api/system/capabilities" -H "Authorization: Bearer $API_KEY" 2>/dev/null)
+    if echo "$caps" | grep -q '"gpu":true'; then
+      echo "$srv"
+      return 0
+    fi
+  done
+  return 1
+}
+
+cmd_create() {
+  local name=""
+  local server=""
   local memory="2g"
   local cpus="1"
+  local need_gpu=false
   
-  shift || true
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --memory) memory="$2"; shift 2 ;;
-      --cpus) cpus="$2"; shift 2 ;;
-      *) shift ;;
+      --server|-s) server="$2"; shift 2 ;;
+      --memory|-m) memory="$2"; shift 2 ;;
+      --cpus|-c) cpus="$2"; shift 2 ;;
+      --gpu|-g) need_gpu=true; shift ;;
+      *) if [ -z "$name" ]; then name="$1"; fi; shift ;;
     esac
   done
   
@@ -77,43 +185,86 @@ cmd_create() {
     exit 1
   fi
   
-  echo -e "${BLUE}Creating space: $name${NC}"
-  result=$(api POST /spaces "{\"name\":\"$name\",\"memory\":\"$memory\",\"cpus\":$cpus}")
+  # Auto-select server based on requirements
+  if [ -z "$server" ]; then
+    if [ "$need_gpu" = true ]; then
+      echo -e "${BLUE}Looking for server with GPU...${NC}"
+      server=$(find_gpu_server)
+      if [ -z "$server" ]; then
+        echo -e "${RED}Error: No server with GPU found${NC}"
+        exit 1
+      fi
+      echo -e "${GREEN}Found GPU server: $server${NC}"
+    else
+      server=$(get_default_server)
+    fi
+    
+    if [ -z "$server" ]; then
+      echo -e "${RED}Error: No Clawdspace servers found. Run 'clawdspace servers --refresh'${NC}"
+      exit 1
+    fi
+  fi
+  
+  echo -e "${BLUE}Creating space '$name' on $server...${NC}"
+  local gpu_json="false"
+  if [ "$need_gpu" = true ]; then
+    gpu_json="true"
+  fi
+  result=$(api "$server" POST /spaces "{\"name\":\"$name\",\"memory\":\"$memory\",\"cpus\":$cpus,\"gpu\":$gpu_json}")
   
   if echo "$result" | grep -q '"error"'; then
-    echo -e "${RED}Error: $(echo "$result" | grep -o '"error":"[^"]*"' | cut -d'"' -f4)${NC}"
+    error=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin).get('error','Unknown'))" 2>/dev/null)
+    echo -e "${RED}Error: $error${NC}"
     exit 1
   fi
   
   echo -e "${GREEN}✓ Created space: $name${NC}"
+  echo "  Server: $server"
   echo "  Memory: $memory"
   echo "  CPUs: $cpus"
-  echo ""
-  echo "Run commands with: clawdspace exec $name <command>"
 }
 
 cmd_list() {
-  result=$(api GET /spaces)
+  local server=""
+  
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --server|-s) server="$2"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
   
   echo -e "${BLUE}Spaces:${NC}"
   echo ""
+  printf "%-20s %-12s %-12s %-15s\n" "NAME" "SERVER" "STATUS" "RESOURCES"
+  printf "%-20s %-12s %-12s %-15s\n" "----" "------" "------" "---------"
   
-  if echo "$result" | grep -q '"spaces":\[\]'; then
-    echo "  No spaces yet. Create one with: clawdspace create <name>"
-    return
-  fi
-  
-  printf "%-20s %-12s %-15s\n" "NAME" "STATUS" "RESOURCES"
-  printf "%-20s %-12s %-15s\n" "----" "------" "---------"
-  
-  # Parse with python for reliability
-  echo "$result" | python3 -c "
+  local total=0
+  for srv in $(get_server_names); do
+    if [ -n "$server" ] && [ "$srv" != "$server" ]; then continue; fi
+    
+    result=$(api "$srv" GET /spaces 2>/dev/null)
+    if [ -z "$result" ] || echo "$result" | grep -q '"error"'; then
+      continue
+    fi
+    
+    echo "$result" | python3 -c "
 import sys, json
-data = json.load(sys.stdin)
-for s in data.get('spaces', []):
-    mem = s.get('memory', 0) / (1024**3)
-    print(f\"{s['name']:<20} {s['status']:<12} {s['cpus']}cpu, {mem:.1f}GB\")
-" 2>/dev/null || echo "$result"
+try:
+    data = json.load(sys.stdin)
+    for s in data.get('spaces', []):
+        mem = s.get('memory', 0) / (1024**3)
+        print(f\"{s['name']:<20} $srv{'':>6} {s['status']:<12} {s['cpus']}cpu, {mem:.1f}GB\")
+except: pass
+" 2>/dev/null
+    
+    count=$(echo "$result" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('spaces',[])))" 2>/dev/null || echo 0)
+    total=$((total + count))
+  done
+  
+  if [ "$total" -eq 0 ]; then
+    echo "  No spaces found."
+  fi
 }
 
 cmd_exec() {
@@ -123,80 +274,66 @@ cmd_exec() {
   
   if [ -z "$name" ] || [ -z "$command" ]; then
     echo -e "${RED}Error: name and command required${NC}"
-    echo "Usage: clawdspace exec <name> <command>"
     exit 1
   fi
   
-  # Escape the command for JSON
-  escaped_command=$(echo "$command" | sed 's/\\/\\\\/g; s/"/\\"/g')
+  server=$(find_space "$name")
+  if [ -z "$server" ]; then
+    echo -e "${RED}Error: Space '$name' not found on any server${NC}"
+    exit 1
+  fi
   
-  result=$(api POST "/spaces/$name/exec" "{\"command\":\"$escaped_command\"}")
+  escaped_command=$(echo "$command" | sed 's/\\/\\\\/g; s/"/\\"/g')
+  result=$(api "$server" POST "/spaces/$name/exec" "{\"command\":\"$escaped_command\"}")
   
   if echo "$result" | grep -q '"error"'; then
-    error=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin).get('error','Unknown error'))" 2>/dev/null || echo "Unknown error")
+    error=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin).get('error','Unknown'))" 2>/dev/null)
     echo -e "${RED}Error: $error${NC}"
     exit 1
   fi
   
-  # Parse output with python
   echo "$result" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
-if data.get('stdout'):
-    print(data['stdout'])
-if data.get('stderr'):
-    import os
-    print(data['stderr'], file=sys.stderr)
+if data.get('stdout'): print(data['stdout'])
+if data.get('stderr'): print(data['stderr'], file=sys.stderr)
 sys.exit(data.get('exitCode', 0))
 " 2>/dev/null
-  exit $?
 }
 
 cmd_stop() {
   local name="$1"
-  if [ -z "$name" ]; then
-    echo -e "${RED}Error: name required${NC}"
-    exit 1
-  fi
+  if [ -z "$name" ]; then echo -e "${RED}Error: name required${NC}"; exit 1; fi
   
-  result=$(api POST "/spaces/$name/stop")
+  server=$(find_space "$name")
+  if [ -z "$server" ]; then echo -e "${RED}Error: Space '$name' not found${NC}"; exit 1; fi
   
-  if echo "$result" | grep -q '"error"'; then
-    echo -e "${RED}Error: $(echo "$result" | grep -o '"error":"[^"]*"' | cut -d'"' -f4)${NC}"
-    exit 1
-  fi
-  
-  echo -e "${GREEN}✓ Paused: $name${NC}"
+  api "$server" POST "/spaces/$name/stop" > /dev/null
+  echo -e "${GREEN}✓ Paused: $name (on $server)${NC}"
 }
 
 cmd_start() {
   local name="$1"
-  if [ -z "$name" ]; then
-    echo -e "${RED}Error: name required${NC}"
-    exit 1
-  fi
+  if [ -z "$name" ]; then echo -e "${RED}Error: name required${NC}"; exit 1; fi
   
-  result=$(api POST "/spaces/$name/start")
+  server=$(find_space "$name")
+  if [ -z "$server" ]; then echo -e "${RED}Error: Space '$name' not found${NC}"; exit 1; fi
   
-  if echo "$result" | grep -q '"error"'; then
-    echo -e "${RED}Error: $(echo "$result" | grep -o '"error":"[^"]*"' | cut -d'"' -f4)${NC}"
-    exit 1
-  fi
-  
-  echo -e "${GREEN}✓ Started: $name${NC}"
+  api "$server" POST "/spaces/$name/start" > /dev/null
+  echo -e "${GREEN}✓ Started: $name (on $server)${NC}"
 }
 
 cmd_destroy() {
   local name="$1"
   local force="$2"
   
-  if [ -z "$name" ]; then
-    echo -e "${RED}Error: name required${NC}"
-    exit 1
-  fi
+  if [ -z "$name" ]; then echo -e "${RED}Error: name required${NC}"; exit 1; fi
+  
+  server=$(find_space "$name")
+  if [ -z "$server" ]; then echo -e "${RED}Error: Space '$name' not found${NC}"; exit 1; fi
   
   if [ "$force" != "-f" ] && [ "$force" != "--force" ]; then
-    echo -n "Destroy space '$name'? [y/N] "
+    echo -n "Destroy space '$name' on $server? [y/N] "
     read -r confirm
     if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
       echo "Cancelled."
@@ -204,91 +341,142 @@ cmd_destroy() {
     fi
   fi
   
-  result=$(api DELETE "/spaces/$name")
-  
-  if echo "$result" | grep -q '"error"'; then
-    echo -e "${RED}Error: $(echo "$result" | grep -o '"error":"[^"]*"' | cut -d'"' -f4)${NC}"
-    exit 1
-  fi
-  
-  echo -e "${GREEN}✓ Destroyed: $name${NC}"
+  api "$server" DELETE "/spaces/$name" > /dev/null
+  echo -e "${GREEN}✓ Destroyed: $name (was on $server)${NC}"
 }
 
-cmd_status() {
-  local name="$1"
-  if [ -z "$name" ]; then
-    echo -e "${RED}Error: name required${NC}"
-    exit 1
+cmd_servers() {
+  local refresh=""
+  
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --refresh|-r) refresh="1"; shift ;;
+      *) shift ;;
+    esac
+  done
+  
+  if [ -n "$refresh" ]; then
+    echo -e "${BLUE}Scanning known hosts...${NC}"
+    rm -f "$CACHE_FILE"
   fi
   
-  result=$(api GET "/spaces/$name")
+  echo -e "${BLUE}Clawdspace Servers:${NC}"
+  echo ""
+  printf "%-12s %-25s %-8s %-22s %-15s\n" "NAME" "URL" "STATUS" "RESOURCES" "CAPABILITIES"
+  printf "%-12s %-25s %-8s %-22s %-15s\n" "----" "---" "------" "---------" "------------"
   
-  if echo "$result" | grep -q '"error"'; then
-    echo -e "${RED}Error: Space not found${NC}"
-    exit 1
+  local found=0
+  for entry in $(get_servers "$refresh"); do
+    [ -z "$entry" ] && continue
+    local server="${entry%%=*}"
+    local url="${entry#*=}"
+    
+    result=$(curl -s --connect-timeout 2 "$url/api/system" -H "Authorization: Bearer $API_KEY" 2>/dev/null)
+    
+    if [ -z "$result" ] || echo "$result" | grep -q '"error"'; then
+      printf "%-12s %-25s ${RED}%-8s${NC}\n" "$server" "$url" "offline"
+    else
+      info=$(echo "$result" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+caps = d.get('capabilities', {})
+gpu_str = ''
+if caps.get('gpu'):
+    gpu_name = caps.get('gpuName', 'GPU')
+    # Shorten GPU name
+    if 'RTX' in gpu_name:
+        gpu_str = '🎮 ' + gpu_name.split('RTX')[1].strip().split()[0]
+    else:
+        gpu_str = '🎮 GPU'
+arch = d.get('arch', '?')
+print(f\"{d['cpus']}cpu, {d['memory']['percentage']}, {arch}|{gpu_str}\")
+" 2>/dev/null || echo "?|")
+      resources="${info%|*}"
+      gpu="${info#*|}"
+      printf "%-12s %-25s ${GREEN}%-8s${NC} %-22s %-15s\n" "$server" "$url" "online" "$resources" "$gpu"
+      found=$((found + 1))
+    fi
+  done
+  
+  if [ "$found" -eq 0 ]; then
+    echo ""
+    echo -e "${YELLOW}No Clawdspace servers found.${NC}"
+    echo -e "Add hosts to CLAWDSPACE_HOSTS in ~/.clawdspace"
   fi
   
-  echo "$result" | python3 -m json.tool 2>/dev/null || echo "$result"
+  echo ""
+  echo -e "${CYAN}Tip: Use --gpu flag to auto-select a GPU server${NC}"
 }
 
 cmd_system() {
-  result=$(api GET /system)
+  local server=""
   
-  echo -e "${BLUE}System Status:${NC}"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --server|-s) server="$2"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
+  
+  if [ -z "$server" ]; then
+    server=$(get_default_server)
+  fi
+  
+  if [ -z "$server" ]; then
+    echo -e "${RED}Error: No servers found${NC}"
+    exit 1
+  fi
+  
+  result=$(api "$server" GET /system)
+  
+  if [ -z "$result" ] || echo "$result" | grep -q '"error"'; then
+    echo -e "${RED}Error: Could not connect to $server${NC}"
+    exit 1
+  fi
+  
+  echo -e "${BLUE}System Status ($server):${NC}"
   echo ""
-  
   echo "$result" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
 print(f\"  Hostname:   {d['hostname']}\")
 print(f\"  Platform:   {d['platform']} ({d['arch']})\")
 print(f\"  CPUs:       {d['cpus']}\")
-print(f\"  Load:       {d['loadAverage'][0]:.2f}, {d['loadAverage'][1]:.2f}, {d['loadAverage'][2]:.2f}\")
-print(f\"  Memory:     {d['memory']['percentage']} used ({d['memory']['used']} / {d['memory']['total']})\")
+print(f\"  Load:       {d['loadAverage'][0]:.2f}\")
+print(f\"  Memory:     {d['memory']['percentage']} ({d['memory']['used']} / {d['memory']['total']})\")
 if d.get('disk'):
-    print(f\"  Disk:       {d['disk']['percentage']} used ({d['disk']['used']} / {d['disk']['total']})\")
+    print(f\"  Disk:       {d['disk']['percentage']} ({d['disk']['used']} / {d['disk']['total']})\")
 print(f\"  Uptime:     {d['uptime']}\")
-print(f\"  Docker:     v{d['docker']['version']}\")
-print(f\"  Containers: {d['docker']['containersRunning']} running, {d['docker']['containersPaused']} paused\")
-" 2>/dev/null || echo "$result"
-}
-
-cmd_dashboard() {
-  echo -e "${BLUE}Opening dashboard...${NC}"
-  open "$API_URL" 2>/dev/null || xdg-open "$API_URL" 2>/dev/null || echo "Dashboard: $API_URL"
+print(f\"  Containers: {d['docker']['containersRunning']} running\")
+" 2>/dev/null
 }
 
 cmd_config() {
-  local url="$1"
-  local key="$2"
-  
-  if [ -z "$url" ] || [ -z "$key" ]; then
-    echo "Current config:"
-    echo "  URL: $API_URL"
-    echo "  Key: ${API_KEY:0:30}..."
-    echo ""
-    echo "To update: clawdspace config <url> <key>"
-    return
-  fi
-  
-  echo "CLAWDSPACE_URL=\"$url\"" > "$CONFIG_FILE"
-  echo "CLAWDSPACE_KEY=\"$key\"" >> "$CONFIG_FILE"
-  chmod 600 "$CONFIG_FILE"
-  
-  echo -e "${GREEN}✓ Config saved to $CONFIG_FILE${NC}"
+  echo "Config file:  $CONFIG_FILE"
+  echo "Cache file:   $CACHE_FILE"
+  echo "Known hosts:  $KNOWN_HOSTS"
+  echo ""
+  echo "API Key: ${API_KEY:0:30}..."
+  echo ""
+  echo "Discovered servers:"
+  for entry in $(get_servers); do
+    [ -z "$entry" ] && continue
+    local server="${entry%%=*}"
+    local url="${entry#*=}"
+    echo "  $server: $url"
+  done
 }
 
 # Main
 case "${1:-}" in
-  create)  shift; cmd_create "$@" ;;
-  list|ls) cmd_list ;;
-  exec|x)  shift; cmd_exec "$@" ;;
-  stop)    shift; cmd_stop "$@" ;;
-  start)   shift; cmd_start "$@" ;;
-  destroy) shift; cmd_destroy "$@" ;;
-  status)  shift; cmd_status "$@" ;;
-  system)  cmd_system ;;
-  dashboard) cmd_dashboard ;;
-  config)  shift; cmd_config "$@" ;;
-  *)       usage ;;
+  create)   shift; cmd_create "$@" ;;
+  list|ls)  shift; cmd_list "$@" ;;
+  exec|x)   shift; cmd_exec "$@" ;;
+  stop)     shift; cmd_stop "$@" ;;
+  start)    shift; cmd_start "$@" ;;
+  destroy)  shift; cmd_destroy "$@" ;;
+  servers)  shift; cmd_servers "$@" ;;
+  system)   shift; cmd_system "$@" ;;
+  config)   cmd_config ;;
+  *)        usage ;;
 esac
