@@ -159,8 +159,8 @@ export async function execInSpace(name: string, command: string | string[]): Pro
   await new Promise<void>((resolve, reject) => {
     docker.modem.demuxStream(
       stream, 
-      { write: (chunk: Buffer) => { stdout += chunk.toString(); } },
-      { write: (chunk: Buffer) => { stderr += chunk.toString(); } }
+      { write: (chunk: Buffer) => { stdout += chunk.toString(); return true; } },
+      { write: (chunk: Buffer) => { stderr += chunk.toString(); return true; } }
     );
     stream.on('end', resolve);
     stream.on('error', reject);
@@ -176,7 +176,7 @@ export async function execInSpace(name: string, command: string | string[]): Pro
   };
 }
 
-export async function getDockerInfo(): Promise<Docker.DockerInfo> {
+export async function getDockerInfo() {
   return docker.info();
 }
 
