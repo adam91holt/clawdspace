@@ -1,0 +1,23 @@
+{
+  "name": "clawdspace",
+  "version": "1.0.0",
+  "description": "Self-hosted sandboxed execution environments",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w @clawdspace/api",
+    "dev:web": "npm run dev -w @clawdspace/web",
+    "build:api": "npm run build -w @clawdspace/api",
+    "build:web": "npm run build -w @clawdspace/web",
+    "build": "npm run build:web && npm run build:api",
+    "start": "npm run start -w @clawdspace/api"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adam91holt/clawdspace.git"
+  },
+  "author": "Adam Holt",
+  "license": "MIT"
+}
