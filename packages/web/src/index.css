@@ -30,7 +30,15 @@
 
 * { box-sizing: border-box; }
 
-html, body { height: 100%; }
+html, html {
+  overflow-y: auto;
+}
+
+body { min-height: 100%; }
+
+html {
+  overflow-y: auto;
+}
 
 body {
   margin: 0;
@@ -42,7 +50,7 @@ body {
     radial-gradient(1200px 900px at 20% 70%, rgba(91, 140, 255, 0.08), transparent 70%),
     linear-gradient(180deg, var(--bg0), var(--bg1) 40%, var(--bg2));
   color: var(--text);
-  overscroll-behavior: none;
+
 }
 
 .container {
@@ -575,6 +583,7 @@ h2 {
 }
 
 @media (pointer: coarse) {
+  body { overscroll-behavior: none; }
   .btn { padding: 12px 14px; }
   .btn-sm { padding: 10px 12px; }
   .seg-btn { padding: 10px 12px; }
