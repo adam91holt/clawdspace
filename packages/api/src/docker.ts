@@ -548,8 +548,18 @@ export function startAutoSleepWorker(idleTimeoutMs: number = 10 * 60 * 1000): No
 
         const name = c.Names[0].replace(`/${PREFIX}`, '');
         const last = lastActivity.get(name);
+        let lastMs: number | null = last ? new Date(last).getTime() : null;
 
-        if (last && (now - new Date(last).getTime()) > idleTimeoutMs) {
+        if (lastMs === null) {
+          try {
+            const inspected = await docker.getContainer(c.Id).inspect();
+            lastMs = new Date(inspected.State.StartedAt).getTime();
+          } catch {
+            lastMs = now;
+          }
+        }
+
+        if ((now - lastMs) > idleTimeoutMs) {
           console.log(`Auto-sleeping space: ${name}`);
           const container = docker.getContainer(c.Id);
           await container.pause();
