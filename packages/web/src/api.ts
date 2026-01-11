@@ -35,11 +35,19 @@ export const api = {
     memory: string,
     cpus: number,
     gpu: boolean = false,
-    repo?: { repoUrl: string; repoBranch?: string; repoDest?: string }
+    repo?: { repoUrl: string; repoBranch?: string; repoDest?: string },
+    envFileText?: string
   ) =>
     request<{ space: Space }>('/spaces', {
       method: 'POST',
-      body: JSON.stringify({ name, memory, cpus, gpu, ...(repo || {}) })
+      body: JSON.stringify({
+        name,
+        memory,
+        cpus,
+        gpu,
+        ...(repo || {}),
+        ...(envFileText ? { envFileText } : {})
+      })
     }),
 
   destroySpace: (name: string, removeVolume: boolean = false) =>

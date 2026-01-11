@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import * as docker from '../docker';
 import { CreateSpaceRequest, ExecRequest } from '../types';
 import { validateRepoCloneRequest, ensureGithubAuthForUrl } from '../git';
+import { validateEnvFileWriteRequest } from '../envfile';
 
 const router = Router();
 
@@ -18,7 +19,19 @@ router.get('/', async (_req: Request, res: Response) => {
 // POST /spaces - Create space
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { name, memory = '2g', cpus = 1, gpu = false, image, repoUrl, repoBranch, repoDest } = req.body as CreateSpaceRequest;
+    const {
+      name,
+      memory = '2g',
+      cpus = 1,
+      gpu = false,
+      image,
+      repoUrl,
+      repoBranch,
+      repoDest,
+      envFileBase64,
+      envFileText,
+      envFilePath
+    } = req.body as CreateSpaceRequest;
 
     if (!name || !/^[a-zA-Z0-9_-]+$/.test(name)) {
       return res.status(400).json({ error: 'Invalid name (alphanumeric, _, - only)' });
@@ -32,9 +45,19 @@ router.post('/', async (req: Request, res: Response) => {
 
     const space = await docker.createSpace(name, memory, cpus, gpu, image);
 
+    // Optional: write an env file into /workspace
+    try {
+      const envReq = validateEnvFileWriteRequest({ envFileBase64, envFileText, envFilePath });
+      if (envReq) {
+        const b64 = Buffer.from(envReq.content, 'utf8').toString('base64');
+        await docker.writeFile(name, envReq.path.replace('/workspace', ''), b64);
+      }
+    } catch (e) {
+      return res.status(400).json({ error: (e as Error).message });
+    }
+
     // Optional: clone repo into the new space workspace
     let didClone = false;
-    let cloneMeta: Record<string, unknown> | undefined;
 
     try {
       const cloneReq = validateRepoCloneRequest({ repoUrl, repoBranch, repoDest } as any);
@@ -61,7 +84,6 @@ router.post('/', async (req: Request, res: Response) => {
         }
 
         didClone = true;
-        cloneMeta = { repoUrl: cloneReq.repoUrl, repoBranch: cloneReq.repoBranch, repoDest: dest };
       }
     } catch (e) {
       return res.status(400).json({ error: (e as Error).message });

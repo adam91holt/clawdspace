@@ -58,6 +58,12 @@ export interface CreateSpaceRequest {
   repoUrl?: string;
   repoBranch?: string;
   repoDest?: string;
+
+  // Optional: write an env file into /workspace (e.g. for server-side auth like GitHub App config).
+  // Accepts either a base64-encoded file or plain text.
+  envFileBase64?: string;
+  envFileText?: string;
+  envFilePath?: string; // default: /workspace/.env
 }
 
 export interface SpaceObservability {

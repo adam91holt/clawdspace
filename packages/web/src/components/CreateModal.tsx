@@ -6,7 +6,8 @@ interface Props {
     name: string,
     memory: string,
     cpus: number,
-    repo?: { repoUrl: string; repoBranch?: string; repoDest?: string }
+    repo?: { repoUrl: string; repoBranch?: string; repoDest?: string },
+    envFileText?: string
   ) => Promise<void>;
 }
 
@@ -17,6 +18,7 @@ export function CreateModal({ onClose, onCreate }: Props) {
   const [repoUrl, setRepoUrl] = useState('');
   const [repoBranch, setRepoBranch] = useState('');
   const [repoDest, setRepoDest] = useState('repo');
+  const [envFileText, setEnvFileText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -34,7 +36,7 @@ export function CreateModal({ onClose, onCreate }: Props) {
           }
         : undefined;
 
-      await onCreate(name, memory, cpus, repo);
+      await onCreate(name, memory, cpus, repo, envFileText.trim() || undefined);
     } catch (err) {
       setError((err as Error).message);
       setLoading(false);
@@ -116,6 +118,20 @@ export function CreateModal({ onClose, onCreate }: Props) {
                   placeholder="repo"
                 />
               </div>
+            </div>
+          </div>
+
+          <div className="form-group" style={{ marginTop: 12 }}>
+            <label className="form-label">.env (optional)</label>
+            <textarea
+              className="form-input"
+              style={{ height: 140, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
+              value={envFileText}
+              onChange={e => setEnvFileText(e.target.value)}
+              placeholder={'GITHUB_APP_ID=\nGITHUB_INSTALLATION_ID=\nGITHUB_PRIVATE_KEY_PEM="-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----"'}
+            />
+            <div className="text-muted text-sm" style={{ marginTop: 6 }}>
+              Written to <code>/workspace/.env</code> inside the space.
             </div>
           </div>
           
