@@ -26,6 +26,20 @@ export function deleteLastActivity(name: string): void {
 function getVolumeName(spaceName: string): string {
   return `${VOLUME_PREFIX}${spaceName}`;
 }
+async function initWorkspaceVolume(spaceName: string, volume: Docker.Volume): Promise<void> {
+  const volumeInfo = await volume.inspect();
+  const mountpoint = (volumeInfo as any).Mountpoint as string | undefined;
+  if (!mountpoint) return;
+
+  const { execFile } = await import("child_process");
+  const { promisify } = await import("util");
+  const execFileAsync = promisify(execFile);
+
+  const uid = 1001;
+  const gid = 1001;
+  await execFileAsync("sh", ["-lc", `mkdir -p "${mountpoint}" && chown -R ${uid}:${gid} "${mountpoint}"`]);
+}
+
 
 export async function ensureSpaceVolume(spaceName: string): Promise<Docker.Volume> {
   const volumeName = getVolumeName(spaceName);
@@ -120,7 +134,8 @@ export async function createSpace(
   const memoryBytes = parseMemory(memory);
   const nanoCpus = cpus * 1e9;
 
-  await ensureSpaceVolume(name);
+  const volume = await ensureSpaceVolume(name);
+  await initWorkspaceVolume(name, volume);
 
   const useImage = image || (gpu
     ? (process.env.CLAWDSPACE_GPU_IMAGE || 'pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime')
