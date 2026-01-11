@@ -89,16 +89,20 @@ router.get('/', async (_req: Request, res: Response) => {
 
     const results: NodeInfo[] = await Promise.all(
       nodes.map(async (n) => {
+        const start = Date.now();
         try {
           const sys = await fetchJson(n.url, apiKey, '/api/system');
+          const latencyMs = Date.now() - start;
           return {
             name: n.name,
             url: n.url,
             status: 'online',
+            latencyMs,
             capabilities: sys.capabilities
           };
         } catch {
-          return { ...n, status: 'offline' };
+          const latencyMs = Date.now() - start;
+          return { ...n, status: 'offline', latencyMs };
         }
       })
     );

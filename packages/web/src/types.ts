@@ -30,6 +30,7 @@ export interface NodeInfo {
   name: string;
   url: string;
   status: 'online' | 'offline';
+  latencyMs?: number;
   capabilities?: {
     gpu?: boolean;
     gpuName?: string;
