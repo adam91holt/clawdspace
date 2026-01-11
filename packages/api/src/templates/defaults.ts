@@ -16,12 +16,13 @@ export function defaultTemplates(): SpaceTemplate[] {
     },
     {
       name: 'gpu',
-      description: 'GPU-enabled space (internet) using clawdspace sandbox image',
+      description: 'GPU-enabled space (internet) using clawdspace-gpu image',
       managed: true,
       resources: {
         memory: '8g',
         cpus: 4,
-        gpu: true
+        gpu: true,
+        image: 'clawdspace-gpu:latest'
       },
       security: { writableRootfs: true },
       network: {
