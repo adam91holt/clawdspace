@@ -50,7 +50,9 @@ discover_servers() {
   
   # Check cache
   if [ -z "$refresh" ] && [ -f "$CACHE_FILE" ]; then
-    local cache_age=$(($(date +%s) - $(stat -f %m "$CACHE_FILE" 2>/dev/null || stat -c %Y "$CACHE_FILE" 2>/dev/null || echo 0)))
+    # Linux: stat -c %Y. macOS: stat -f %m.
+    local cache_mtime=$(stat -c %Y "$CACHE_FILE" 2>/dev/null || stat -f %m "$CACHE_FILE" 2>/dev/null || echo 0)
+    local cache_age=$(($(date +%s) - cache_mtime))
     if [ "$cache_age" -lt "$CACHE_TTL" ]; then
       cat "$CACHE_FILE"
       return
