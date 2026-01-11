@@ -153,7 +153,7 @@ h2 {
 .text-sm { font-size: 12px; }
 
 .empty-state {
-  padding: 18px;
+  padding: calc(14px + var(--safe-top)) calc(14px + var(--safe-right)) calc(14px + var(--safe-bottom)) calc(14px + var(--safe-left));
   border: 1px dashed rgba(255,255,255,0.18);
   border-radius: var(--radius-md);
   color: var(--muted);
@@ -229,7 +229,7 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 18px;
+  padding: calc(14px + var(--safe-top)) calc(14px + var(--safe-right)) calc(14px + var(--safe-bottom)) calc(14px + var(--safe-left));
   z-index: 50;
 }
 
@@ -241,6 +241,8 @@ h2 {
   border-radius: var(--radius-lg);
   padding: 16px;
   box-shadow: var(--shadow);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
 }
 
 .modal-wide { width: 860px; }
@@ -589,3 +591,7 @@ h2 {
   .audit-row { grid-template-columns: 1fr; }
   .audit-meta { white-space: normal; }
 }
+
+
+.modal-title { margin: 0; font-size: 14px; letter-spacing: 0.2px; }
+.modal-subtitle { margin-top: 4px; font-size: 12px; color: var(--muted); }

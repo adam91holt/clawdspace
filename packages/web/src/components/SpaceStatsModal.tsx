@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ModalShell } from './ModalShell';
 import { api } from '../api';
 import { SpaceStats } from '../types';
 
@@ -48,12 +49,11 @@ export function SpaceStatsModal({
   }, [spaceName]);
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>Stats: {spaceName}</h3>
-          <button className="btn btn-icon" onClick={onClose}>×</button>
-        </div>
+    <ModalShell
+      title="Stats"
+      subtitle={spaceName}
+      onClose={onClose}
+    >
 
         {error && (
           <div className="alert alert-error">
@@ -93,7 +93,6 @@ export function SpaceStatsModal({
         <div className="modal-actions">
           <button className="btn" onClick={onClose}>Close</button>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }

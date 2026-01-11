@@ -23,11 +23,14 @@ RUN apt-get update && apt-get install -y \
 RUN groupadd -g 1001 sandbox && useradd -m -u 1001 -g 1001 -s /bin/bash sandbox
 
 # Force bash history into the workspace volume so we can audit interactive sessions.
-# Note: interactive shell must be bash for this to apply.
+# Notes:
+# - We use HISTTIMEFORMAT so each line has an epoch timestamp prefix.
+# - Interactive shell must be bash for this to apply.
 ENV HISTFILE=/workspace/.bash_history \
     HISTSIZE=100000 \
     HISTFILESIZE=200000 \
-    HISTCONTROL=ignoreboth
+    HISTCONTROL=ignoreboth \
+    HISTTIMEFORMAT='%s '
 
 RUN mkdir -p /workspace && chown -R 1001:1001 /workspace \
   && printf '%s\n' \
@@ -35,6 +38,7 @@ RUN mkdir -p /workspace && chown -R 1001:1001 /workspace \
     'export HISTSIZE=100000' \
     'export HISTFILESIZE=200000' \
     'export HISTCONTROL=ignoreboth' \
+    "export HISTTIMEFORMAT='%s '" \
     'shopt -s histappend' \
     'export PROMPT_COMMAND="history -a; history -n; ${PROMPT_COMMAND}"' \
     > /etc/profile.d/clawdspace_history.sh

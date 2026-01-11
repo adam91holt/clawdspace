@@ -10,6 +10,7 @@ export type AuditEvent = {
     | 'space.pause'
     | 'space.destroy'
     | 'space.exec'
+    | 'space.shell'
     | 'space.file.write'
     | 'terminal.open'
     | 'terminal.close';

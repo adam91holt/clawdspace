@@ -9,6 +9,7 @@ import auditRouter from './routes/audit';
 import { startAutoSleepWorker } from './docker';
 import { startTerminalSession } from './terminal';
 import { startNodesCacheWorker } from './nodesCache';
+import { startHistoryIngestWorker } from './historyIngest';
 
 const appBase = express();
 const wsInstance = expressWs(appBase);
@@ -77,7 +78,7 @@ app.ws('/api/spaces/:name/terminal', async (ws, req) => {
 
 // Health check
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', version: '1.5.0' });
+  res.json({ status: 'ok', version: '1.6.0' });
 });
 
 // SPA fallback
@@ -96,6 +97,7 @@ startAutoSleepWorker(IDLE_TIMEOUT_MS);
 
 // Start nodes discovery/health cache worker
 startNodesCacheWorker(parseInt(process.env.NODES_REFRESH_MS || '30000'));
+startHistoryIngestWorker(parseInt(process.env.HISTORY_INGEST_MS || '15000'));
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {

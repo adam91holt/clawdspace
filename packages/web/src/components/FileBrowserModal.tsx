@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ModalShell } from './ModalShell';
 import { api } from '../api';
 import { FileEntry } from '../types';
 
@@ -66,12 +67,12 @@ export function FileBrowserModal({
   const files = entries.filter(e => e.type !== 'dir');
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>Files: {spaceName} <span className="muted">(workspace)</span></h3>
-          <button className="btn btn-icon" onClick={onClose}>×</button>
-        </div>
+    <ModalShell
+      title="Files"
+      subtitle={`${spaceName} · /workspace`}
+      wide
+      onClose={onClose}
+    >
 
         <div className="breadcrumbs">
           {breadcrumb.map((c, i) => (
@@ -148,7 +149,6 @@ export function FileBrowserModal({
         <div className="modal-actions">
           <button className="btn" onClick={onClose}>Close</button>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }

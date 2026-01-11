@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import { ModalShell } from './ModalShell';
 
 type AuditEvent = {
   ts: string;
@@ -55,36 +56,34 @@ export function AuditModal({
   }, [spaceName]);
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>Audit Log {spaceName ? `· ${spaceName}` : ''}</h3>
-          <button className="btn btn-icon" onClick={onClose}>×</button>
-        </div>
+    <ModalShell
+      title="Audit Log"
+      subtitle={spaceName ? `space: ${spaceName}` : 'all spaces'}
+      wide
+      onClose={onClose}
+    >
+      {error && <div className="alert alert-error">{error}</div>}
 
-        {error && <div className="alert alert-error">{error}</div>}
-
-        {loading ? (
-          <div className="loading">Loading…</div>
-        ) : (
-          <div className="audit-list">
-            {events.map((e, idx) => (
-              <div key={idx} className="audit-row">
-                <div className="audit-ts">{formatTs(e.ts)}</div>
-                <div className="audit-type">{e.type}</div>
-                <div className="audit-meta">
-                  {e.meta ? JSON.stringify(e.meta) : ''}
-                </div>
+      {loading ? (
+        <div className="loading">Loading…</div>
+      ) : (
+        <div className="audit-list">
+          {events.map((e, idx) => (
+            <div key={idx} className="audit-row">
+              <div className="audit-ts">{formatTs(e.ts)}</div>
+              <div className="audit-type">{e.type}</div>
+              <div className="audit-meta">
+                {e.meta ? JSON.stringify(e.meta) : ''}
               </div>
-            ))}
-            {events.length === 0 && <div className="empty">No events yet</div>}
-          </div>
-        )}
-
-        <div className="modal-actions">
-          <button className="btn" onClick={onClose}>Close</button>
+            </div>
+          ))}
+          {events.length === 0 && <div className="empty">No events yet</div>}
         </div>
+      )}
+
+      <div className="modal-actions">
+        <button className="btn" onClick={onClose}>Close</button>
       </div>
-    </div>
+    </ModalShell>
   );
 }

@@ -3,6 +3,7 @@ import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
 import { getApiKey, setApiKey } from '../api';
+import { ModalShell } from './ModalShell';
 
 type TerminalStatus = 'connecting' | 'connected' | 'closed' | 'error' | 'needs_key';
 
@@ -25,7 +26,6 @@ export function TerminalModal({
   const pingTimerRef = useRef<number | null>(null);
 
   const [status, setStatus] = useState<TerminalStatus>('connecting');
-  const [closeInfo, setCloseInfo] = useState<{ code?: number; reason?: string } | null>(null);
 
   const apiKey = useMemo(() => getApiKey(), []);
 
@@ -80,7 +80,6 @@ export function TerminalModal({
       if (disposed) return;
 
       setStatus('connecting');
-      setCloseInfo(null);
 
       try {
         wsRef.current?.close();
@@ -108,10 +107,9 @@ export function TerminalModal({
         term.writeln(`Connected to ${spaceName}`);
       };
 
-      ws.onclose = (evt) => {
+      ws.onclose = () => {
         if (disposed) return;
         setStatus('closed');
-        setCloseInfo({ code: evt.code, reason: evt.reason });
       };
 
       ws.onerror = () => {
@@ -197,22 +195,13 @@ export function TerminalModal({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>
-            Terminal: {spaceName}{' '}
-            <span className="muted">
-              ({status}{closeInfo?.code ? ` ${closeInfo.code}` : ''}{closeInfo?.reason ? ` ${closeInfo.reason}` : ''})
-            </span>
-          </h3>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {(status === 'closed' || status === 'error') && (
-              <button className="btn" onClick={reconnect}>Reconnect</button>
-            )}
-            <button className="btn btn-icon" onClick={onClose}>×</button>
-          </div>
-        </div>
+    <ModalShell
+      title="Terminal"
+      subtitle={`${spaceName} · /workspace`}
+      wide
+      onClose={onClose}
+      right={(status === 'closed' || status === 'error') ? (<button className="btn" onClick={reconnect}>Reconnect</button>) : null}
+    >
 
         <div style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, overflow: 'hidden' }}>
           <div ref={containerRef} style={{ height: 420, width: '100%' }} />
@@ -224,7 +213,6 @@ export function TerminalModal({
             onClose();
           }}>Close</button>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
