@@ -7,6 +7,7 @@ import systemRouter from './routes/system';
 import nodesRouter from './routes/nodes';
 import { startAutoSleepWorker } from './docker';
 import { startTerminalSession } from './terminal';
+import { startNodesCacheWorker } from './nodesCache';
 
 const appBase = express();
 const wsInstance = expressWs(appBase);
@@ -74,7 +75,7 @@ app.ws('/api/spaces/:name/terminal', async (ws, req) => {
 
 // Health check
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', version: '1.3.0' });
+  res.json({ status: 'ok', version: '1.4.0' });
 });
 
 // SPA fallback
@@ -90,6 +91,9 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 
 // Start auto-sleep worker
 startAutoSleepWorker(IDLE_TIMEOUT_MS);
+
+// Start nodes discovery/health cache worker
+startNodesCacheWorker(parseInt(process.env.NODES_REFRESH_MS || '30000'));
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {

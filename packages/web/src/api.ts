@@ -65,7 +65,7 @@ export const api = {
 
   getSystem: () => request<SystemInfo>('/system'),
 
-  getNodes: () => request<{ nodes: NodeInfo[] }>('/nodes')
+  getNodes: () => request<{ nodes: NodeInfo[]; lastUpdatedAt?: number }>('/nodes')
 };
 
 export function setApiKey(key: string) {

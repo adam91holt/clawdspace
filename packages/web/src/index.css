@@ -422,3 +422,98 @@ h2 {
 @media (max-width: 920px) {
   .node-grid { grid-template-columns: 1fr; }
 }
+
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.10);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.seg-btn {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.seg-btn:hover {
+  background: rgba(255,255,255,0.08);
+  color: var(--text);
+}
+
+.seg-btn.active {
+  background: rgba(122, 166, 255, 0.18);
+  color: var(--text);
+}
+
+.search {
+  width: 180px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.16);
+  color: var(--text);
+  outline: none;
+}
+
+.search::placeholder { color: rgba(255,255,255,0.38); }
+
+.space-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.space-card {
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+.space-card:hover {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.16);
+}
+
+.space-card-top {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.space-title {
+  font-weight: 800;
+}
+
+.space-sub {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.space-card-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.space-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+@media (max-width: 920px) {
+  .space-cards { grid-template-columns: 1fr; }
+  .search { width: 100%; }
+}

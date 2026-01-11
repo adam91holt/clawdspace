@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { SpaceList } from './components/SpaceList';
+import { SpacesPanel } from './components/SpacesPanel';
 import { SystemStats } from './components/SystemStats';
 import { NodesPanel } from './components/NodesPanel';
 import { CreateModal } from './components/CreateModal';
@@ -84,25 +84,21 @@ function App() {
 
       <SystemStats system={system} loading={loading} spacesCount={spaces.length} />
 
-      <section className="section">
-        <div className="section-header">
-          <h2>Spaces</h2>
-          <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
-            + Create Space
-          </button>
-        </div>
-
-        <SpaceList
-          spaces={spaces}
-          onExec={setExecSpace}
-          onTerminal={setTerminalSpace}
-          onFiles={setFilesSpace}
-          onStats={setStatsSpace}
-          onStop={handleStop}
-          onStart={handleStart}
-          onDestroy={handleDestroy}
-        />
-      </section>
+      <SpacesPanel
+        spaces={spaces}
+        onCreate={() => setShowCreate(true)}
+        onExec={setExecSpace}
+        onTerminal={setTerminalSpace}
+        onFiles={setFilesSpace}
+        onStats={setStatsSpace}
+        onStop={handleStop}
+        onStart={handleStart}
+        onDestroy={handleDestroy}
+        onPauseAll={async (names) => {
+          await Promise.all(names.map((n) => api.stopSpace(n)));
+          fetchSpaces();
+        }}
+      />
 
       <NodesPanel />
 

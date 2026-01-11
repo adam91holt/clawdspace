@@ -24,6 +24,7 @@ function hostIcon(node: NodeInfo): string {
 
 export function NodesPanel() {
   const [nodes, setNodes] = useState<NodeInfo[] | null>(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -34,11 +35,13 @@ export function NodesPanel() {
         const res = await api.getNodes();
         if (!mounted) return;
         setNodes(res.nodes || []);
+        setLastUpdatedAt(res.lastUpdatedAt || null);
         setError(null);
       } catch (e) {
         if (!mounted) return;
         setError((e as Error).message);
         setNodes([]);
+        setLastUpdatedAt(null);
       }
     }
 
@@ -71,13 +74,22 @@ export function NodesPanel() {
     });
   }, [nodes]);
 
+  const updatedText = useMemo(() => {
+    if (!lastUpdatedAt) return '';
+    const diff = Date.now() - lastUpdatedAt;
+    if (diff < 15000) return 'just now';
+    if (diff < 60000) return `${Math.floor(diff / 1000)}s ago`;
+    return `${Math.floor(diff / 60000)}m ago`;
+  }, [lastUpdatedAt]);
+
   return (
     <section className="section" style={{ marginTop: 16 }}>
       <div className="section-header">
         <div>
           <h2>⟩ Nodes</h2>
           <div className="text-muted text-sm" style={{ marginTop: 4 }}>
-            {nodes === null ? 'Discovering via Tailscale…' : `${summary.online}/${summary.total} online · auto-discovery`}
+            {nodes === null ? 'Loading cached nodes…' : `${summary.online}/${summary.total} online · tailscale auto-discovery`}
+            {updatedText ? <span className="text-muted"> · updated {updatedText}</span> : null}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -95,7 +107,7 @@ export function NodesPanel() {
         </div>
       ) : sorted.length === 0 ? (
         <div className="empty-state">
-          No nodes found. Make sure Tailscale is running on this host, and other nodes are reachable on port 7777.
+          No nodes found yet. Make sure Tailscale is running on this host, and other nodes are reachable on port 7777.
         </div>
       ) : (
         <div className="node-grid">
