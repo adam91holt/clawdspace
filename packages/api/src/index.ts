@@ -7,6 +7,7 @@ import systemRouter from './routes/system';
 import nodesRouter from './routes/nodes';
 import auditRouter from './routes/audit';
 import templatesRouter from './routes/templates';
+import gitRouter from './routes/git';
 import { startAutoSleepWorker } from './docker';
 import { startTerminalSession } from './terminal';
 import { startNodesCacheWorker } from './nodesCache';
@@ -59,6 +60,7 @@ app.use('/api/system', auth, systemRouter);
 app.use('/api/nodes', auth, nodesRouter);
 app.use('/api/audit', auth, auditRouter);
 app.use('/api/templates', auth, templatesRouter);
+app.use('/api/spaces', auth, gitRouter);
 
 // Terminal websocket (admin)
 app.ws('/api/spaces/:name/terminal', async (ws, req) => {
