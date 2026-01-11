@@ -30,7 +30,7 @@ usage() {
   echo "clawdspace - Multi-server sandboxed execution environments"
   echo ""
   echo "Usage:"
-  echo "  clawdspace create <name> [--server <server>] [--memory 2g] [--cpus 1] [--repo <url>] [--branch <branch>] [--dest <folder>] [--github-token <token>] [--github-token-stdin]"
+  echo "  clawdspace create <name> [--server <server>] [--template <name>] [--memory 2g] [--cpus 1] [--repo <url>] [--branch <branch>] [--dest <folder>] [--github-token <token>] [--github-token-stdin]"
   echo "  clawdspace list [--server <server>]"
   echo "  clawdspace exec <name> <command>"
   echo "  clawdspace stop <name>"
@@ -168,6 +168,7 @@ find_gpu_server() {
 cmd_create() {
   local name=""
   local server=""
+  local template_name=""
   local memory="2g"
   local cpus="1"
   local need_gpu=false
@@ -180,6 +181,7 @@ cmd_create() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --server|-s) server="$2"; shift 2 ;;
+      --template|-t) template_name="$2"; shift 2 ;;
       --memory|-m) memory="$2"; shift 2 ;;
       --cpus|-c) cpus="$2"; shift 2 ;;
       --gpu|-g) need_gpu=true; shift ;;
@@ -238,6 +240,9 @@ cmd_create() {
     gpu_json="true"
   fi
   local payload="{\"name\":\"$name\",\"memory\":\"$memory\",\"cpus\":$cpus,\"gpu\":$gpu_json"
+  if [ -n "$template_name" ]; then
+    payload+=" ,\"template\":\"$template_name\""
+  fi
   if [ -n "$repo_url" ]; then
     payload+=" ,\"repoUrl\":\"$repo_url\""
     if [ -n "$repo_branch" ]; then payload+=" ,\"repoBranch\":\"$repo_branch\""; fi
