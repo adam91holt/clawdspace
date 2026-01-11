@@ -187,6 +187,9 @@ cmd_create() {
   local memory="2g"
   local cpus="1"
   local need_gpu=false
+  local memory_set=false
+  local cpus_set=false
+  local gpu_set=false
   local repo_url=""
   local repo_branch=""
   local repo_dest=""
@@ -197,9 +200,9 @@ cmd_create() {
     case "$1" in
       --server|-s) server="$2"; shift 2 ;;
       --template|-t) template_name="$2"; shift 2 ;;
-      --memory|-m) memory="$2"; shift 2 ;;
-      --cpus|-c) cpus="$2"; shift 2 ;;
-      --gpu|-g) need_gpu=true; shift ;;
+      --memory|-m) memory="$2"; memory_set=true; shift 2 ;;
+      --cpus|-c) cpus="$2"; cpus_set=true; shift 2 ;;
+      --gpu|-g) need_gpu=true; gpu_set=true; shift ;;
       --repo) repo_url="$2"; shift 2 ;;
       --branch) repo_branch="$2"; shift 2 ;;
       --dest) repo_dest="$2"; shift 2 ;;
@@ -250,13 +253,22 @@ cmd_create() {
   fi
   
   echo -e "${BLUE}Creating space '$name' on $server...${NC}"
+
   local gpu_json="false"
   if [ "$need_gpu" = true ]; then
     gpu_json="true"
   fi
-  local payload="{\"name\":\"$name\",\"memory\":\"$memory\",\"cpus\":$cpus,\"gpu\":$gpu_json"
+
+  # If using a template, don't send explicit memory/cpu/gpu unless user set them.
+  local payload="{\"name\":\"$name\""
+  if [ "$memory_set" = true ]; then payload+=" ,\"memory\":\"$memory\""; fi
+  if [ "$cpus_set" = true ]; then payload+=" ,\"cpus\":$cpus"; fi
+  if [ "$gpu_set" = true ]; then payload+=" ,\"gpu\":$gpu_json"; fi
+
   if [ -n "$template_name" ]; then
     payload+=" ,\"template\":\"$template_name\""
+  else
+    payload+=" ,\"memory\":\"$memory\" ,\"cpus\":$cpus ,\"gpu\":$gpu_json"
   fi
   if [ -n "$repo_url" ]; then
     payload+=" ,\"repoUrl\":\"$repo_url\""
