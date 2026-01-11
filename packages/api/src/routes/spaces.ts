@@ -67,9 +67,10 @@ router.post('/', async (req: Request, res: Response) => {
         image = merged.image ?? image;
         repoDest = merged.repoDest ?? repoDest;
 
-        // Managed templates can override the chosen base image.
-        // This keeps GPU spaces on our sandbox image (git/apt/etc) while still enabling GPU runtime.
-        if (tpl.managed) {
+        // Managed templates are owned by the system.
+        // If a managed template sets an image, honor it.
+        // If it doesn't set an image, fall back to the default sandbox image.
+        if (tpl.managed && !tpl.resources?.image) {
           image = undefined;
         }
 
