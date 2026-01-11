@@ -9,6 +9,7 @@ import { api } from './api';
 import { SpaceStatsModal } from './components/SpaceStatsModal';
 import { FileBrowserModal } from './components/FileBrowserModal';
 import { TerminalModal } from './components/TerminalModal';
+import { AuditModal } from './components/AuditModal';
 
 function App() {
   const [spaces, setSpaces] = useState<Space[]>([]);
@@ -18,6 +19,7 @@ function App() {
   const [terminalSpace, setTerminalSpace] = useState<string | null>(null);
   const [statsSpace, setStatsSpace] = useState<string | null>(null);
   const [filesSpace, setFilesSpace] = useState<string | null>(null);
+  const [auditSpace, setAuditSpace] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchSpaces = useCallback(async () => {
@@ -98,6 +100,7 @@ function App() {
           await Promise.all(names.map((n) => api.stopSpace(n)));
           fetchSpaces();
         }}
+        onAudit={(space) => setAuditSpace(space ?? '__all__')}
       />
 
       <NodesPanel />
@@ -135,6 +138,13 @@ function App() {
         <FileBrowserModal
           spaceName={filesSpace}
           onClose={() => setFilesSpace(null)}
+        />
+      )}
+
+      {auditSpace && (
+        <AuditModal
+          spaceName={auditSpace === '__all__' ? undefined : auditSpace}
+          onClose={() => setAuditSpace(null)}
         />
       )}
 

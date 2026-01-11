@@ -1,5 +1,6 @@
 import Docker from 'dockerode';
 import { ExecResult, FileEntry, Space, SpaceStats } from './types';
+import { writeAudit } from './audit';
 
 const docker = new Docker({ socketPath: '/var/run/docker.sock' });
 
@@ -270,6 +271,7 @@ export async function createSpace(
 
   await container.start();
   setLastActivity(name);
+  await writeAudit({ ts: new Date().toISOString(), space: name, type: 'space.create', meta: { memory, cpus, gpu, image: useImage } });
 
   return formatSpace(container);
 }
@@ -280,6 +282,7 @@ export async function destroySpace(name: string, removeVolume: boolean = false):
 
   await container.remove({ force: true });
   deleteLastActivity(name);
+  await writeAudit({ ts: new Date().toISOString(), space: name, type: 'space.destroy', meta: { removeVolume } });
 
   if (removeVolume) {
     try {
@@ -295,6 +298,7 @@ export async function stopSpace(name: string): Promise<void> {
   if (!container) throw new Error('Space not found');
 
   await container.pause();
+  await writeAudit({ ts: new Date().toISOString(), space: name, type: 'space.pause' });
 }
 
 export async function startSpace(name: string): Promise<void> {
@@ -309,6 +313,7 @@ export async function startSpace(name: string): Promise<void> {
   }
 
   setLastActivity(name);
+  await writeAudit({ ts: new Date().toISOString(), space: name, type: 'space.start' });
 }
 
 export async function execInSpace(name: string, command: string | string[]): Promise<ExecResult> {
@@ -345,6 +350,7 @@ export async function execInSpace(name: string, command: string | string[]): Pro
 
   const result = await exec.inspect();
   setLastActivity(name);
+  await writeAudit({ ts: new Date().toISOString(), space: name, type: 'space.exec', meta: { command } });
 
   return {
     stdout: stdout.trim(),
@@ -533,7 +539,11 @@ export async function writeFile(name: string, relPath: string, contentBase64: st
   if (result.exitCode !== 0) {
     throw new Error(result.stderr || 'Failed to write file');
   }
+
+  const approxBytes = Math.floor((contentBase64.length * 3) / 4);
+  await writeAudit({ ts: new Date().toISOString(), space: name, type: 'space.file.write', meta: { path: relPath, bytes: approxBytes } });
 }
+
 
 // Auto-sleep worker
 export function startAutoSleepWorker(idleTimeoutMs: number = 10 * 60 * 1000): NodeJS.Timeout {

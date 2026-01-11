@@ -555,3 +555,46 @@ h2 {
 body {
   overscroll-behavior: none;
 }
+
+
+.audit-list {
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: rgba(0,0,0,0.10);
+}
+
+.audit-row {
+  display: grid;
+  grid-template-columns: 180px 160px 1fr;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.10);
+}
+
+.audit-row:last-child { border-bottom: none; }
+
+.audit-ts {
+  color: var(--muted);
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.audit-type {
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.audit-meta {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+@media (max-width: 920px) {
+  .audit-row { grid-template-columns: 1fr; }
+  .audit-meta { white-space: normal; }
+}

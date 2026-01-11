@@ -33,7 +33,8 @@ export function SpacesPanel({
   onStop,
   onStart,
   onDestroy,
-  onPauseAll
+  onPauseAll,
+  onAudit
 }: {
   spaces: Space[];
   onCreate: () => void;
@@ -45,6 +46,7 @@ export function SpacesPanel({
   onStart: (name: string) => void;
   onDestroy: (name: string) => void;
   onPauseAll: (names: string[]) => void;
+  onAudit: (space?: string) => void;
 }) {
   const [view, setView] = useState<'table' | 'cards'>('table');
   const [query, setQuery] = useState('');
@@ -98,6 +100,7 @@ export function SpacesPanel({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
+          <button className="btn" onClick={() => onAudit(undefined)}>Audit</button>
           <button className="btn" onClick={pauseAll} disabled={summary.running === 0}>Pause All</button>
           <button className="btn btn-primary" onClick={onCreate}>+ Create Space</button>
         </div>
@@ -152,6 +155,7 @@ export function SpacesPanel({
                     <button className="btn btn-sm btn-ghost" onClick={() => onTerminal(space.name)}>Terminal</button>
                     <button className="btn btn-sm btn-ghost" onClick={() => onFiles(space.name)}>Files</button>
                     <button className="btn btn-sm btn-ghost" onClick={() => onStats(space.name)}>Stats</button>
+                    <button className="btn btn-sm btn-ghost" onClick={() => onAudit(space.name)}>Audit</button>
                     {space.status === 'running' ? (
                       <button className="btn btn-sm btn-ghost" onClick={() => onStop(space.name)}>Pause</button>
                     ) : (
@@ -190,6 +194,7 @@ export function SpacesPanel({
                 <button className="btn btn-sm" onClick={() => onTerminal(s.name)}>Terminal</button>
                 <button className="btn btn-sm" onClick={() => onFiles(s.name)}>Files</button>
                 <button className="btn btn-sm" onClick={() => onStats(s.name)}>Stats</button>
+                <button className="btn btn-sm" onClick={() => onAudit(s.name)}>Audit</button>
                 {s.status === 'running' ? (
                   <button className="btn btn-sm" onClick={() => onStop(s.name)}>Pause</button>
                 ) : (

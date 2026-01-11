@@ -1,5 +1,6 @@
 import Docker from 'dockerode';
 import type WebSocket from 'ws';
+import { writeAudit } from './audit';
 
 const docker = new Docker({ socketPath: '/var/run/docker.sock' });
 
@@ -33,6 +34,8 @@ export async function startTerminalSession({
     ws.close();
     return;
   }
+
+  await writeAudit({ ts: new Date().toISOString(), space: name, type: 'terminal.open' });
 
   const container = docker.getContainer(containerInfo.Id);
   const info = await container.inspect();
@@ -126,7 +129,10 @@ export async function startTerminalSession({
     }
   };
 
-  ws.on('close', cleanup);
+  ws.on('close', () => {
+    writeAudit({ ts: new Date().toISOString(), space: name, type: 'terminal.close' }).catch(() => {});
+    cleanup();
+  });
   ws.on('error', cleanup);
   stream.on('end', () => {
     try {
