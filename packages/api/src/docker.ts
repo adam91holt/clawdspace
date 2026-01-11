@@ -34,6 +34,7 @@ async function initWorkspaceVolume(spaceName: string): Promise<void> {
 
   const helper = await docker.createContainer({
     Image: IMAGE,
+    Entrypoint: [],
     User: "root",
     WorkingDir: WORKSPACE_MOUNT,
     HostConfig: {
