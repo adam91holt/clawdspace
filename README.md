@@ -37,6 +37,9 @@ flowchart LR
 
 ## Setup (single node)
 
+For a more detailed guide, see `docs/SETUP.md`.
+
+
 ### 1) Prerequisites
 
 - Docker installed and running
@@ -171,6 +174,8 @@ clawdspace dashboard
 - `docs/ARCHITECTURE.md` — system design + mermaid diagrams
 - `docs/CLI.md` — CLI reference
 - `docs/SETUP.md` — setup guide (API key, services, nodes)
+- `docs/USAGE.md` — day 2 workflows + examples
+- `docs/TROUBLESHOOTING.md` — common errors + fixes
 
 ---
 
