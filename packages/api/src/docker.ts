@@ -26,18 +26,27 @@ export function deleteLastActivity(name: string): void {
 function getVolumeName(spaceName: string): string {
   return `${VOLUME_PREFIX}${spaceName}`;
 }
-async function initWorkspaceVolume(spaceName: string, volume: Docker.Volume): Promise<void> {
-  const volumeInfo = await volume.inspect();
-  const mountpoint = (volumeInfo as any).Mountpoint as string | undefined;
-  if (!mountpoint) return;
 
-  const { execFile } = await import("child_process");
-  const { promisify } = await import("util");
-  const execFileAsync = promisify(execFile);
+async function initWorkspaceVolume(spaceName: string): Promise<void> {
+  // Ensure the sandbox user can write into the per-space volume.
+  // Do this via a short-lived helper container so we do not touch host paths directly.
+  const volumeName = getVolumeName(spaceName);
 
-  const uid = 1001;
-  const gid = 1001;
-  await execFileAsync("sh", ["-lc", `mkdir -p "${mountpoint}" && chown -R ${uid}:${gid} "${mountpoint}" && chmod -R u+rwX,g+rwX "${mountpoint}"`]);
+  const helper = await docker.createContainer({
+    Image: IMAGE,
+    User: "root",
+    WorkingDir: WORKSPACE_MOUNT,
+    HostConfig: {
+      AutoRemove: true,
+      NetworkMode: "none",
+      Mounts: [{ Type: "volume", Source: volumeName, Target: WORKSPACE_MOUNT, ReadOnly: false }]
+    },
+    Cmd: ["sh", "-lc", "chown -R 1001:1001 /workspace && chmod -R u+rwX,g+rwX /workspace"],
+    Labels: { "clawdspace.kind": "volume-init", "clawdspace.space": spaceName }
+  });
+
+  await helper.start();
+  await helper.wait();
 }
 
 
@@ -134,8 +143,8 @@ export async function createSpace(
   const memoryBytes = parseMemory(memory);
   const nanoCpus = cpus * 1e9;
 
-  const volume = await ensureSpaceVolume(name);
-  await initWorkspaceVolume(name, volume);
+  await ensureSpaceVolume(name);
+  await initWorkspaceVolume(name);
 
   const useImage = image || (gpu
     ? (process.env.CLAWDSPACE_GPU_IMAGE || 'pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime')
