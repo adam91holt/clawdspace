@@ -1,8 +1,9 @@
 import { Router, Request, Response } from 'express';
 import * as docker from '../docker';
 import { CreateSpaceRequest, ExecRequest } from '../types';
-import { validateRepoCloneRequest, ensureGithubAuthForUrl } from '../git';
+import { validateRepoCloneRequest } from '../git';
 import { validateEnvFileWriteRequest } from '../envfile';
+import { getGhToken, isGithubHttpsRepoUrl, toGithubTokenCloneUrl } from '../github';
 
 const router = Router();
 
@@ -63,10 +64,19 @@ router.post('/', async (req: Request, res: Response) => {
     try {
       const cloneReq = validateRepoCloneRequest({ repoUrl, repoBranch, repoDest } as any);
       if (cloneReq) {
-        await ensureGithubAuthForUrl(cloneReq.repoUrl);
-
         const dest = cloneReq.repoDest || 'repo';
         const branchArg = cloneReq.repoBranch ? `-b ${cloneReq.repoBranch}` : '';
+
+        // Private GitHub https repos: use the host's gh token to clone.
+        // This avoids passing PATs over the wire and makes cloning "just work" as long as the server is gh-authed.
+        let urlForClone = cloneReq.repoUrl;
+        if (isGithubHttpsRepoUrl(cloneReq.repoUrl)) {
+          const token = await getGhToken();
+          if (!token) {
+            return res.status(400).json({ error: 'Repo clone failed: host is not authenticated to GitHub (run `gh auth login` on the server)' });
+          }
+          urlForClone = toGithubTokenCloneUrl(cloneReq.repoUrl, token);
+        }
 
         const cmd = [
           'sh',
@@ -75,7 +85,11 @@ router.post('/', async (req: Request, res: Response) => {
             'set -e',
             `cd /workspace`,
             `rm -rf "${dest}"`,
-            `git clone ${branchArg} "${cloneReq.repoUrl}" "${dest}"`
+            // Clone may use a short-lived credentialed URL, but reset origin to the clean URL afterward.
+            `git clone ${branchArg} "${urlForClone}" "${dest}"`,
+            ...(isGithubHttpsRepoUrl(cloneReq.repoUrl)
+              ? [`cd "${dest}"`, `git remote set-url origin "${cloneReq.repoUrl.replace(/\.git$/, '')}.git"`]
+              : [])
           ].join(' && ')
         ];
 

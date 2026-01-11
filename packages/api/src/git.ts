@@ -55,14 +55,7 @@ export function validateRepoCloneRequest(req?: RepoCloneRequest): RepoCloneReque
   return { repoUrl, repoBranch, repoDest };
 }
 
-export async function ensureGithubAuthForUrl(repoUrl: string): Promise<void> {
-  // Best-effort: if gh is installed + authed, it can provide credentials for https clones.
-  // This keeps secrets out of Clawdspace, leaning on the operator's existing GitHub auth.
-  if (!repoUrl.startsWith('https://github.com/')) return;
-
-  try {
-    await execFileAsync('gh', ['auth', 'status', '-h', 'github.com'], { timeout: 4000 });
-  } catch {
-    // No gh or not authed: clone may still work (public repo), otherwise will fail.
-  }
+export async function ensureGithubAuthForUrl(_repoUrl: string): Promise<void> {
+  // Back-compat shim. Auth is handled on-demand via host gh token.
+  return;
 }

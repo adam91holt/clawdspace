@@ -322,7 +322,11 @@ export async function startSpace(name: string): Promise<void> {
   await writeAudit({ ts: new Date().toISOString(), space: name, type: 'space.start' });
 }
 
-export async function execInSpace(name: string, command: string | string[]): Promise<ExecResult> {
+export async function execInSpace(
+  name: string,
+  command: string | string[],
+  opts?: { env?: Record<string, string> }
+): Promise<ExecResult> { 
   const container = await getContainer(name);
   if (!container) throw new Error('Space not found');
 
@@ -333,12 +337,19 @@ export async function execInSpace(name: string, command: string | string[]): Pro
 
   const cmd = Array.isArray(command) ? command : ['sh', '-c', command];
 
+  const envList = opts?.env
+    ? Object.entries(opts.env)
+        .filter(([k, v]) => !!k && v != null)
+        .map(([k, v]) => `${k}=${v}`)
+    : undefined;
+
   const exec = await container.exec({
     Cmd: cmd,
     AttachStdout: true,
     AttachStderr: true,
     User: info.Config.User || 'sandbox',
-    WorkingDir: WORKSPACE_MOUNT
+    WorkingDir: WORKSPACE_MOUNT,
+    Env: envList
   });
 
   const stream = await exec.start({});
