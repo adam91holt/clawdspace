@@ -59,7 +59,6 @@ async function initWorkspaceVolume(spaceName: string): Promise<void> {
     User: 'root',
     WorkingDir: WORKSPACE_MOUNT,
     HostConfig: {
-      AutoRemove: false,
       NetworkMode: 'none',
       Mounts: [{ Type: 'volume', Source: volumeName, Target: WORKSPACE_MOUNT, ReadOnly: false }]
     },
