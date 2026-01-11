@@ -6,7 +6,7 @@ FROM ubuntu:24.04
 # Install common development tools
 RUN apt-get update && apt-get install -y \
     # Basic utilities
-    curl wget git vim nano \
+    curl wget git vim nano ca-certificates \
     # Build tools
     build-essential \
     # Python
@@ -15,6 +15,8 @@ RUN apt-get update && apt-get install -y \
     nodejs npm \
     # System tools
     jq htop tmux \
+    # GitHub CLI (gh)
+    gh \
     # Cleanup
     && rm -rf /var/lib/apt/lists/*
 

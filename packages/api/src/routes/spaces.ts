@@ -43,7 +43,8 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(409).json({ error: 'Space already exists' });
     }
 
-    const space = await docker.createSpace(name, memory, cpus, gpu, image);
+    const env = (req.body as CreateSpaceRequest).env;
+    const space = await docker.createSpace(name, memory, cpus, gpu, image, env);
 
     // Optional: write an env file into /workspace
     try {

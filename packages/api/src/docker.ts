@@ -203,7 +203,8 @@ export async function createSpace(
   memory: string = '2g',
   cpus: number = 1,
   gpu: boolean = false,
-  image?: string
+  image?: string,
+  env?: Record<string, string>
 ): Promise<Space> {
   const memoryBytes = parseMemory(memory);
   const nanoCpus = cpus * 1e9;
@@ -262,6 +263,11 @@ export async function createSpace(
     WorkingDir: WORKSPACE_MOUNT,
     HostConfig: hostConfig,
     Cmd: ['sleep', 'infinity'],
+    Env: env
+      ? Object.entries(env)
+          .filter(([k, v]) => !!k && v != null)
+          .map(([k, v]) => `${k}=${v}`)
+      : undefined,
     Labels: {
       'clawdspace.kind': 'space',
       'clawdspace.space': name,

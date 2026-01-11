@@ -25,7 +25,7 @@ describe('GPU Support', () => {
       
       expect(res.status).toBe(201);
       expect(mockDocker.createSpace).toHaveBeenCalledWith(
-        'gpu-space', '2g', 1, true, undefined
+        'gpu-space', '2g', 1, true, undefined, undefined
       );
     });
 
@@ -40,7 +40,7 @@ describe('GPU Support', () => {
       
       expect(res.status).toBe(201);
       expect(mockDocker.createSpace).toHaveBeenCalledWith(
-        'custom-gpu', '2g', 1, true, 'nvidia/cuda:12.0-base'
+        'custom-gpu', '2g', 1, true, 'nvidia/cuda:12.0-base', undefined
       );
     });
 
@@ -51,7 +51,7 @@ describe('GPU Support', () => {
       
       expect(res.status).toBe(201);
       expect(mockDocker.createSpace).toHaveBeenCalledWith(
-        'normal-space', '2g', 1, false, undefined
+        'normal-space', '2g', 1, false, undefined, undefined
       );
     });
   });
