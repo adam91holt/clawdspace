@@ -90,7 +90,13 @@ get_servers() {
 get_server_url() {
   local name="$1"
   local servers=$(get_servers)
-  
+
+  # Allow passing a full URL as the server.
+  if echo "$name" | grep -q '^https\?://'; then
+    echo "$name"
+    return 0
+  fi
+
   for entry in $servers; do
     local srv_name="${entry%%=*}"
     local srv_url="${entry#*=}"
@@ -99,6 +105,15 @@ get_server_url() {
       return 0
     fi
   done
+
+  # Fallback: allow passing a raw hostname from KNOWN_HOSTS.
+  for host in $KNOWN_HOSTS; do
+    if [ "$host" = "$name" ]; then
+      echo "http://$host:$DEFAULT_PORT"
+      return 0
+    fi
+  done
+
   return 1
 }
 
