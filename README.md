@@ -23,7 +23,7 @@ flowchart LR
   UI[Web Dashboard] -->|REST + WS| API[Clawdspace API]
   API -->|Docker socket| DOCKER[Docker Engine]
   DOCKER -->|containers| SPACE[Spaces]
-  DOCKER -->|named volumes| VOL[Per-space volumes (/workspace)]
+  DOCKER -->|named volumes| VOL[Per-space volumes]
 
   API -->|tailscale status| TS[Tailscale]
   API -->|cached probe| NODES[Other nodes]
