@@ -31,7 +31,7 @@ async function initWorkspaceVolume(spaceName: string): Promise<void> {
   // Ensure the sandbox user can write into the per-space volume.
   // Do this via a short-lived helper container so we do not touch host paths directly.
   const volumeName = getVolumeName(spaceName);
-  const helperName = `${PREFIX}${spaceName}-volume-init`;
+  const helperName = `${PREFIX}${spaceName}-volume-init-${Date.now()}`;
 
   // Clean up any old helper (best effort)
   try {
