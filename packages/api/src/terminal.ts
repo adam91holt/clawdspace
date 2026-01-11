@@ -8,7 +8,8 @@ const WORKSPACE_MOUNT = '/workspace';
 
 type ClientMessage =
   | { type: 'input'; data: string }
-  | { type: 'resize'; cols: number; rows: number };
+  | { type: 'resize'; cols: number; rows: number }
+  | { type: 'ping' };
 
 function safeJsonParse(input: unknown): ClientMessage | null {
   if (typeof input !== 'string') return null;
@@ -70,6 +71,15 @@ export async function startTerminalSession({
       }
 
       const msg = safeJsonParse(data);
+      if (msg?.type === 'ping') {
+        try {
+          ws.send(JSON.stringify({ type: 'pong' }));
+        } catch {
+          // ignore
+        }
+        return;
+      }
+
       if (msg?.type === 'resize') {
         const cols = Math.max(1, Math.min(500, Math.floor(msg.cols)));
         const rows = Math.max(1, Math.min(200, Math.floor(msg.rows)));
