@@ -1,14 +1,18 @@
 import { Space, SystemInfo, ExecResult, SpaceStats, FileEntry, NodeInfo } from './types';
 
-const API_KEY = localStorage.getItem('clawdspace_key') || '';
+function getStoredKey(): string {
+  return (localStorage.getItem('clawdspace_key') || '').trim();
+}
 
 const headers = {
-  'Content-Type': 'application/json',
-  'Authorization': `Bearer ${API_KEY}`
+  'Content-Type': 'application/json'
 };
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`/api${path}`, {
+  const key = getStoredKey();
+  const url = key ? `/api${path}${path.includes('?') ? '&' : '?'}key=${encodeURIComponent(key)}` : `/api${path}`;
+
+  const res = await fetch(url, {
     ...options,
     headers: { ...headers, ...options.headers }
   });
@@ -71,16 +75,16 @@ export const api = {
 };
 
 export function setApiKey(key: string) {
-  localStorage.setItem('clawdspace_key', key);
+  localStorage.setItem('clawdspace_key', key.trim());
   window.location.reload();
 }
 
 export function getApiKey(): string {
-  return localStorage.getItem('clawdspace_key') || '';
+  return getStoredKey();
 }
 
 // Prompt for API key on first load
-if (!API_KEY) {
+if (!getStoredKey()) {
   const key = window.prompt('Enter API Key:');
   if (key) {
     setApiKey(key);
