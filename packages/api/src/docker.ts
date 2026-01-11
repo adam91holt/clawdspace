@@ -8,6 +8,9 @@ const PREFIX = 'clawdspace-';
 const VOLUME_PREFIX = 'clawdspace-vol-';
 const WORKSPACE_MOUNT = '/workspace';
 
+const SANDBOX_UID = 1001;
+const SANDBOX_GID = 1001;
+
 // Track last activity per space
 const lastActivity = new Map<string, string>();
 
@@ -29,68 +32,87 @@ function getVolumeName(spaceName: string): string {
 
 async function initWorkspaceVolume(spaceName: string): Promise<void> {
   // Ensure the sandbox user can write into the per-space volume.
-  // Do this via a short-lived helper container so we do not touch host paths directly.
+  // We verify by performing a write as the sandbox user.
   const volumeName = getVolumeName(spaceName);
-  const helperName = `${PREFIX}${spaceName}-volume-init-${Date.now()}`;
 
-  // Clean up any old helper (best effort)
-  try {
-    await docker.getContainer(helperName).remove({ force: true });
-  } catch {
-    // ignore
-  }
+  async function runHelper(user: string, cmd: string[]): Promise<number> {
+    const helperName = `${PREFIX}${spaceName}-volume-init-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-  const cmd = [
-    'sh',
-    '-lc',
-    [
-      'set -e',
-      'id',
-      'ls -ld /workspace || true',
-      'chown -R 1001:1001 /workspace',
-      'chmod -R u+rwX,g+rwX /workspace',
-      'ls -ld /workspace || true'
-    ].join(' && ')
-  ];
+    const helper = await docker.createContainer({
+      Image: IMAGE,
+      name: helperName,
+      User: user,
+      WorkingDir: WORKSPACE_MOUNT,
+      HostConfig: {
+        NetworkMode: 'none',
+        Mounts: [{ Type: 'volume', Source: volumeName, Target: WORKSPACE_MOUNT, ReadOnly: false }]
+      },
+      Cmd: cmd,
+      Labels: { 'clawdspace.kind': 'volume-init', 'clawdspace.space': spaceName }
+    });
 
-  const helper = await docker.createContainer({
-    Image: IMAGE,
-    name: helperName,
-    User: 'root',
-    WorkingDir: WORKSPACE_MOUNT,
-    HostConfig: {
-      NetworkMode: 'none',
-      Mounts: [{ Type: 'volume', Source: volumeName, Target: WORKSPACE_MOUNT, ReadOnly: false }]
-    },
-    Cmd: cmd,
-    Labels: { 'clawdspace.kind': 'volume-init', 'clawdspace.space': spaceName }
-  });
+    await helper.start();
+    const res = await helper.wait();
 
-  await helper.start();
-  const res = await helper.wait();
-
-  try {
-    const logs = await helper.logs({ stdout: true, stderr: true });
-    const logText = Buffer.isBuffer(logs) ? logs.toString('utf8') : String(logs);
-    if (logText.trim()) {
-      console.log(`[volume-init:${spaceName}] ${logText.trim()}`);
+    try {
+      const logs = await helper.logs({ stdout: true, stderr: true });
+      const logText = Buffer.isBuffer(logs) ? logs.toString('utf8') : String(logs);
+      if (logText.trim()) {
+        console.log(`[volume-init:${spaceName}] ${logText.trim()}`);
+      }
+    } catch {
+      // ignore
     }
-  } catch {
-    // ignore
+
+    try {
+      await helper.remove({ force: true });
+    } catch {
+      // ignore
+    }
+
+    return (res as any)?.StatusCode ?? 1;
   }
 
-  try {
-    await helper.remove({ force: true });
-  } catch {
-    // ignore
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    // Step 1: set ownership and perms as root.
+    const status = await runHelper('root', [
+      'sh',
+      '-lc',
+      [
+        'set -e',
+        'mkdir -p /workspace',
+        `chown -R ${SANDBOX_UID}:${SANDBOX_GID} /workspace`,
+        'chmod -R u+rwX,g+rwX /workspace',
+        'chmod 775 /workspace',
+        // marker file to validate permissions and persist
+        'touch /workspace/.clawdspace_init',
+        `chown ${SANDBOX_UID}:${SANDBOX_GID} /workspace/.clawdspace_init`,
+        'stat -c "init %u:%g %a" /workspace'
+      ].join(' && ')
+    ]);
+
+    if (status !== 0) {
+      continue;
+    }
+
+    // Step 2: verify sandbox user can write.
+    const verify = await runHelper('sandbox', [
+      'sh',
+      '-lc',
+      [
+        'set -e',
+        'touch /workspace/.clawdspace_verify',
+        'stat -c "verify %u:%g %a" /workspace'
+      ].join(' && ')
+    ]);
+
+    if (verify === 0) {
+      return;
+    }
   }
 
-  if ((res as any)?.StatusCode !== 0) {
-    throw new Error(`Failed to initialize volume for ${spaceName}`);
-  }
-
+  throw new Error(`Failed to initialize workspace volume for ${spaceName}`);
 }
-
 
 export async function ensureSpaceVolume(spaceName: string): Promise<Docker.Volume> {
   const volumeName = getVolumeName(spaceName);
