@@ -44,7 +44,7 @@ export async function startTerminalSession({
   }
 
   const exec = await container.exec({
-    Cmd: ['sh', '-l'],
+    Cmd: ['bash', '-l'],
     AttachStdin: true,
     AttachStdout: true,
     AttachStderr: true,

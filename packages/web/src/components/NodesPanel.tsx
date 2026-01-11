@@ -58,16 +58,12 @@ export function NodesPanel({ onNodes }: { onNodes?: (nodes: NodeInfo[] | null) =
     };
   }, []);
 
-  const summary = useMemo(() => {
-    if (!nodes) return { online: 0, total: 0 };
-    const online = nodes.filter(n => n.status === 'online').length;
-    return { online, total: nodes.length };
+  const onlineNodes = useMemo(() => {
+    return (nodes || []).filter(n => n.status === 'online');
   }, [nodes]);
 
   const sorted = useMemo(() => {
-    if (!nodes) return [];
-    return [...nodes].sort((a, b) => {
-      if (a.status !== b.status) return a.status === 'online' ? -1 : 1;
+    return [...onlineNodes].sort((a, b) => {
       const agpu = a.capabilities?.gpu ? 1 : 0;
       const bgpu = b.capabilities?.gpu ? 1 : 0;
       if (agpu !== bgpu) return bgpu - agpu;
@@ -76,7 +72,7 @@ export function NodesPanel({ onNodes }: { onNodes?: (nodes: NodeInfo[] | null) =
       if (alat !== blat) return alat - blat;
       return a.name.localeCompare(b.name);
     });
-  }, [nodes]);
+  }, [onlineNodes]);
 
   const updatedText = useMemo(() => {
     if (!lastUpdatedAt) return '';
@@ -92,7 +88,7 @@ export function NodesPanel({ onNodes }: { onNodes?: (nodes: NodeInfo[] | null) =
         <div>
           <h2>⟩ Nodes</h2>
           <div className="text-muted text-sm" style={{ marginTop: 4 }}>
-            {nodes === null ? 'Loading cached nodes…' : `${summary.online}/${summary.total} online · tailscale auto-discovery`}
+            {nodes === null ? 'Loading cached nodes…' : `${onlineNodes.length} online · tailscale auto-discovery`}
             {updatedText ? <span className="text-muted"> · updated {updatedText}</span> : null}
           </div>
         </div>
@@ -105,13 +101,13 @@ export function NodesPanel({ onNodes }: { onNodes?: (nodes: NodeInfo[] | null) =
 
       {nodes === null ? (
         <div className="skeleton-list">
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="skeleton-row" />
           ))}
         </div>
       ) : sorted.length === 0 ? (
         <div className="empty-state">
-          No nodes found yet. Make sure Tailscale is running on this host, and other nodes are reachable on port 7777.
+          No nodes online yet. Bring another node online by starting Clawdspace there.
         </div>
       ) : (
         <div className="node-grid node-grid-mobile">
