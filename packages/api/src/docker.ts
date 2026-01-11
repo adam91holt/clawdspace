@@ -213,9 +213,8 @@ export async function createSpace(
   await ensureSpaceVolume(name);
   await initWorkspaceVolume(name);
 
-  const useImage = image || (gpu
-    ? (process.env.CLAWDSPACE_GPU_IMAGE || 'pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime')
-    : IMAGE);
+  const gpuImage = process.env.CLAWDSPACE_GPU_IMAGE || 'pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime';
+  const useImage = image || (gpu ? gpuImage : IMAGE);
 
   const hostConfig: Docker.HostConfig = {
     Memory: memoryBytes,

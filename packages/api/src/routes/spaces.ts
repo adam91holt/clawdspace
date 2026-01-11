@@ -7,6 +7,7 @@ import { getGhToken, isGithubHttpsRepoUrl, toGithubTokenCloneUrl } from '../gith
 import { getTemplate } from '../templates/store';
 import { applyTemplateToCreateRequest } from '../templates/apply';
 import { templateDefaults } from '../templates/effective';
+import { ensureImageHasGit } from '../dockerImage';
 
 const router = Router();
 
@@ -83,6 +84,12 @@ router.post('/', async (req: Request, res: Response) => {
       writableRootfs: templateWritableRootfs,
       labels: templateLabels
     });
+
+    // If using a custom image (commonly GPU images), ensure git is available for optional repo clones.
+    // This is best-effort; cloning will still fail with a clear error if git can't be installed.
+    if (repoUrl) {
+      await ensureImageHasGit({ spaceName: name, image: space.image }).catch(() => undefined);
+    }
 
     // Optional: write an env file into /workspace
     try {
