@@ -30,7 +30,7 @@ usage() {
   echo "clawdspace - Multi-server sandboxed execution environments"
   echo ""
   echo "Usage:"
-  echo "  clawdspace create <name> [--server <server>] [--memory 2g] [--cpus 1]"
+  echo "  clawdspace create <name> [--server <server>] [--memory 2g] [--cpus 1] [--repo <url>] [--branch <branch>] [--dest <folder>]"
   echo "  clawdspace list [--server <server>]"
   echo "  clawdspace exec <name> <command>"
   echo "  clawdspace stop <name>"
@@ -171,6 +171,9 @@ cmd_create() {
   local memory="2g"
   local cpus="1"
   local need_gpu=false
+  local repo_url=""
+  local repo_branch=""
+  local repo_dest=""
   
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -178,6 +181,9 @@ cmd_create() {
       --memory|-m) memory="$2"; shift 2 ;;
       --cpus|-c) cpus="$2"; shift 2 ;;
       --gpu|-g) need_gpu=true; shift ;;
+      --repo) repo_url="$2"; shift 2 ;;
+      --branch) repo_branch="$2"; shift 2 ;;
+      --dest) repo_dest="$2"; shift 2 ;;
       *) if [ -z "$name" ]; then name="$1"; fi; shift ;;
     esac
   done
@@ -212,7 +218,15 @@ cmd_create() {
   if [ "$need_gpu" = true ]; then
     gpu_json="true"
   fi
-  result=$(api "$server" POST /spaces "{\"name\":\"$name\",\"memory\":\"$memory\",\"cpus\":$cpus,\"gpu\":$gpu_json}")
+  local payload="{\"name\":\"$name\",\"memory\":\"$memory\",\"cpus\":$cpus,\"gpu\":$gpu_json"
+  if [ -n "$repo_url" ]; then
+    payload+=" ,\"repoUrl\":\"$repo_url\""
+    if [ -n "$repo_branch" ]; then payload+=" ,\"repoBranch\":\"$repo_branch\""; fi
+    if [ -n "$repo_dest" ]; then payload+=" ,\"repoDest\":\"$repo_dest\""; fi
+  fi
+  payload+="}"
+
+  result=$(api "$server" POST /spaces "$payload")
   
   if echo "$result" | grep -q '"error"'; then
     error=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin).get('error','Unknown'))" 2>/dev/null)
