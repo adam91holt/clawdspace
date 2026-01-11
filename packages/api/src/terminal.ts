@@ -6,6 +6,19 @@ const docker = new Docker({ socketPath: '/var/run/docker.sock' });
 const PREFIX = 'clawdspace-';
 const WORKSPACE_MOUNT = '/workspace';
 
+type ClientMessage =
+  | { type: 'input'; data: string }
+  | { type: 'resize'; cols: number; rows: number };
+
+function safeJsonParse(input: unknown): ClientMessage | null {
+  if (typeof input !== 'string') return null;
+  try {
+    return JSON.parse(input) as ClientMessage;
+  } catch {
+    return null;
+  }
+}
+
 export async function startTerminalSession({
   name,
   ws
@@ -27,7 +40,7 @@ export async function startTerminalSession({
   }
 
   const exec = await container.exec({
-    Cmd: ['sh'],
+    Cmd: ['sh', '-l'],
     AttachStdin: true,
     AttachStdout: true,
     AttachStderr: true,
@@ -41,15 +54,40 @@ export async function startTerminalSession({
     stdin: true
   } as any);
 
+  // Initial size: xterm will likely send a resize immediately.
+  try {
+    await exec.resize({ h: 24, w: 80 } as any);
+  } catch {
+    // ignore
+  }
+
   const onMessage = (data: WebSocket.RawData) => {
     try {
+      // Binary: treat as raw keystrokes for backward compatibility.
       if (Buffer.isBuffer(data)) {
         stream.write(data);
-      } else if (typeof data === 'string') {
-        stream.write(Buffer.from(data));
-      } else {
-        stream.write(Buffer.from(data as any));
+        return;
       }
+
+      const msg = safeJsonParse(data);
+      if (msg?.type === 'resize') {
+        const cols = Math.max(1, Math.min(500, Math.floor(msg.cols)));
+        const rows = Math.max(1, Math.min(200, Math.floor(msg.rows)));
+        exec.resize({ w: cols, h: rows } as any).catch(() => {});
+        return;
+      }
+
+      if (msg?.type === 'input') {
+        stream.write(Buffer.from(msg.data));
+        return;
+      }
+
+      if (typeof data === 'string') {
+        stream.write(Buffer.from(data));
+        return;
+      }
+
+      stream.write(Buffer.from(data as any));
     } catch {
       // ignore
     }

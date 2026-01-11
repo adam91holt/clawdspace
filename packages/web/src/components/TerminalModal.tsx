@@ -4,6 +4,12 @@ import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
 import { getApiKey } from '../api';
 
+type TerminalStatus = 'connecting' | 'connected' | 'closed' | 'error';
+
+type ClientMessage =
+  | { type: 'input'; data: string }
+  | { type: 'resize'; cols: number; rows: number };
+
 export function TerminalModal({
   spaceName,
   onClose
@@ -15,7 +21,7 @@ export function TerminalModal({
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  const [status, setStatus] = useState<'connecting' | 'connected' | 'closed' | 'error'>('connecting');
+  const [status, setStatus] = useState<TerminalStatus>('connecting');
 
   const wsUrl = useMemo(() => {
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -44,14 +50,33 @@ export function TerminalModal({
       fit.fit();
     }
 
+    setStatus('connecting');
+
     const ws = new WebSocket(wsUrl);
     ws.binaryType = 'arraybuffer';
     wsRef.current = ws;
 
+    const send = (msg: ClientMessage) => {
+      try {
+        ws.send(JSON.stringify(msg));
+      } catch {
+        // ignore
+      }
+    };
+
     ws.onopen = () => {
       setStatus('connected');
+
+      // Initial size
+      try {
+        const cols = term.cols || 80;
+        const rows = term.rows || 24;
+        send({ type: 'resize', cols, rows });
+      } catch {
+        // ignore
+      }
+
       term.writeln(`Connected to ${spaceName}`);
-      term.write('$ ');
     };
 
     ws.onclose = () => {
@@ -63,34 +88,42 @@ export function TerminalModal({
     };
 
     ws.onmessage = (evt) => {
-      if (!termRef.current) return;
+      const t = termRef.current;
+      if (!t) return;
       if (typeof evt.data === 'string') {
-        termRef.current.write(evt.data);
+        t.write(evt.data);
       } else {
         const bytes = new Uint8Array(evt.data as ArrayBuffer);
-        termRef.current.write(new TextDecoder().decode(bytes));
+        t.write(new TextDecoder().decode(bytes));
       }
     };
 
     const disposer = term.onData((data) => {
-      try {
-        ws.send(data);
-      } catch {
-        // ignore
-      }
+      send({ type: 'input', data });
     });
 
     const onResize = () => {
       try {
         fit.fit();
+        send({ type: 'resize', cols: term.cols, rows: term.rows });
       } catch {
         // ignore
       }
     };
+
+    // Resize from window changes
     window.addEventListener('resize', onResize);
+
+    // Resize when xterm's geometry changes
+    const resizeDisposer = term.onResize(() => onResize());
 
     return () => {
       window.removeEventListener('resize', onResize);
+      try {
+        resizeDisposer.dispose();
+      } catch {
+        // ignore
+      }
       try {
         disposer.dispose();
       } catch {
