@@ -141,6 +141,10 @@ function App() {
           onClose={() => setFilesSpace(null)}
         />
       )}
+    
+      <div className="footer">
+        Built by 🦞 (a tiny nod to the crustacean army) — keep it local, keep it yours.
+      </div>
     </div>
   );
 }
