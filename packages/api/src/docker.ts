@@ -204,7 +204,8 @@ export async function createSpace(
   cpus: number = 1,
   gpu: boolean = false,
   image?: string,
-  env?: Record<string, string>
+  env?: Record<string, string>,
+  opts?: { networkMode?: 'bridge' | 'none'; writableRootfs?: boolean; labels?: Record<string, string> }
 ): Promise<Space> {
   const memoryBytes = parseMemory(memory);
   const nanoCpus = cpus * 1e9;
@@ -224,7 +225,7 @@ export async function createSpace(
     CapDrop: ['ALL'],
     SecurityOpt: ['no-new-privileges'],
 
-    ReadonlyRootfs: false,
+    ReadonlyRootfs: opts?.writableRootfs === false ? true : false,
     Tmpfs: {
       '/tmp': 'rw,noexec,nosuid,nodev,size=512m',
       '/run': 'rw,noexec,nosuid,nodev,size=16m'
@@ -232,8 +233,8 @@ export async function createSpace(
 
     PidsLimit: 512,
 
-    // Network is required for cloning repos, package installs, etc.
-    NetworkMode: 'bridge',
+    // Default to bridge; templates can override to "none".
+    NetworkMode: opts?.networkMode || 'bridge',
 
     Mounts: [
       {
@@ -254,6 +255,8 @@ export async function createSpace(
       Capabilities: [['gpu']],
       Options: {}
     }];
+  } else if (opts?.networkMode === 'none') {
+    hostConfig.NetworkMode = 'none';
   }
 
   const container = await docker.createContainer({
@@ -272,7 +275,8 @@ export async function createSpace(
     Labels: {
       'clawdspace.kind': 'space',
       'clawdspace.space': name,
-      'clawdspace.volume': getVolumeName(name)
+      'clawdspace.volume': getVolumeName(name),
+      ...(opts?.labels || {})
     }
   });
 

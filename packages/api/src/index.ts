@@ -12,6 +12,8 @@ import { startTerminalSession } from './terminal';
 import { startNodesCacheWorker } from './nodesCache';
 import { startHistoryIngestWorker } from './historyIngest';
 import { ensureDefaultTemplates } from './templates/init';
+import { ensureEgressFirewall } from './firewall';
+import { defaultTemplates } from './templates/defaults';
 
 const appBase = express();
 const wsInstance = expressWs(appBase);
@@ -106,6 +108,18 @@ startHistoryIngestWorker(parseInt(process.env.HISTORY_INGEST_MS || '15000'));
 ensureDefaultTemplates().catch((e) => {
   console.error('Template init failed:', (e as Error).message);
 });
+
+// Firewall: best-effort LAN/Tailscale blocking for "default" template
+// This provides a reasonable baseline even before per-space enforcement exists.
+try {
+  const t = defaultTemplates().find((x) => x.name === 'default');
+  const cidrs = t?.network?.blockCidrs || [];
+  ensureEgressFirewall({ name: 'default', blockCidrs: cidrs }).catch((e) => {
+    console.error('Firewall init failed:', (e as Error).message);
+  });
+} catch {
+  // ignore
+}
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {

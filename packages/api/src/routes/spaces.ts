@@ -6,6 +6,7 @@ import { validateEnvFileWriteRequest } from '../envfile';
 import { getGhToken, isGithubHttpsRepoUrl, toGithubTokenCloneUrl } from '../github';
 import { getTemplate } from '../templates/store';
 import { applyTemplateToCreateRequest } from '../templates/apply';
+import { templateDefaults } from '../templates/effective';
 
 const router = Router();
 
@@ -48,10 +49,15 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     // Apply template defaults (if provided)
+    let templateLabels: Record<string, string> | undefined;
+    let templateNetworkMode: 'bridge' | 'none' | undefined;
+    let templateWritableRootfs: boolean | undefined;
+
     if (template) {
       try {
         const tpl = await getTemplate(template);
         const merged = applyTemplateToCreateRequest({ req: req.body as CreateSpaceRequest, template: tpl });
+        const eff = templateDefaults(tpl);
 
         name = merged.name;
         memory = merged.memory ?? memory;
@@ -59,13 +65,24 @@ router.post('/', async (req: Request, res: Response) => {
         gpu = merged.gpu ?? gpu;
         image = merged.image ?? image;
         repoDest = merged.repoDest ?? repoDest;
+
+        templateLabels = {
+          'clawdspace.template': tpl.name,
+          'clawdspace.network.mode': tpl.network?.mode || 'internet'
+        };
+        templateNetworkMode = eff.networkMode;
+        templateWritableRootfs = eff.writableRootfs;
       } catch (e) {
         return res.status(400).json({ error: `Invalid template: ${(e as Error).message}` });
       }
     }
 
     const env = (req.body as CreateSpaceRequest).env;
-    const space = await docker.createSpace(name, memory, cpus, gpu, image, env);
+    const space = await docker.createSpace(name, memory, cpus, gpu, image, env, {
+      networkMode: templateNetworkMode,
+      writableRootfs: templateWritableRootfs,
+      labels: templateLabels
+    });
 
     // Optional: write an env file into /workspace
     try {
