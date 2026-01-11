@@ -22,6 +22,7 @@ const app = wsInstance.app;
 
 const PORT = parseInt(process.env.PORT || '7777');
 const API_KEY = process.env.API_KEY || 'clawdspace_dev_key';
+const AUTH_DISABLED = process.env.CLAWDSPACE_AUTH_DISABLED === 'true';
 const IDLE_TIMEOUT_MS = parseInt(process.env.IDLE_TIMEOUT_MS || String(10 * 60 * 1000));
 
 // Middleware
@@ -36,7 +37,7 @@ const auth = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   const apiKey = req.query.key as string | undefined;
 
-  if (authHeader === `Bearer ${API_KEY}` || apiKey === API_KEY) {
+  if (AUTH_DISABLED || authHeader === `Bearer ${API_KEY}` || apiKey === API_KEY) {
     return next();
   }
 
@@ -51,7 +52,7 @@ const auth = (req: Request, res: Response, next: NextFunction) => {
 function isWsAuthed(req: Request): boolean {
   const authHeader = req.headers.authorization;
   const apiKey = req.query.key as string | undefined;
-  return authHeader === `Bearer ${API_KEY}` || apiKey === API_KEY;
+  return AUTH_DISABLED || authHeader === `Bearer ${API_KEY}` || apiKey === API_KEY;
 }
 
 // API routes

@@ -4,13 +4,17 @@ function getStoredKey(): string {
   return (localStorage.getItem('clawdspace_key') || '').trim();
 }
 
+function isAuthDisabled(): boolean {
+  return (localStorage.getItem('clawdspace_auth_disabled') || '').trim() === 'true';
+}
+
 const headers = {
   'Content-Type': 'application/json'
 };
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const key = getStoredKey();
-  const url = key ? `/api${path}${path.includes('?') ? '&' : '?'}key=${encodeURIComponent(key)}` : `/api${path}`;
+  const url = (!isAuthDisabled() && key) ? `/api${path}${path.includes('?') ? '&' : '?'}key=${encodeURIComponent(key)}` : `/api${path}`;
 
   const res = await fetch(url, {
     ...options,
