@@ -7,7 +7,8 @@ interface Props {
     memory: string,
     cpus: number,
     repo?: { repoUrl: string; repoBranch?: string; repoDest?: string },
-    envFileText?: string
+    envFileText?: string,
+    template?: string
   ) => Promise<void>;
 }
 
@@ -19,6 +20,7 @@ export function CreateModal({ onClose, onCreate }: Props) {
   const [repoBranch, setRepoBranch] = useState('');
   const [repoDest, setRepoDest] = useState('repo');
   const [envFileText, setEnvFileText] = useState('');
+  const [template, setTemplate] = useState('default');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -36,7 +38,7 @@ export function CreateModal({ onClose, onCreate }: Props) {
           }
         : undefined;
 
-      await onCreate(name, memory, cpus, repo, envFileText.trim() || undefined);
+      await onCreate(name, memory, cpus, repo, envFileText.trim() || undefined, template.trim() || undefined);
     } catch (err) {
       setError((err as Error).message);
       setLoading(false);
@@ -64,6 +66,16 @@ export function CreateModal({ onClose, onCreate }: Props) {
           </div>
           
           <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Template</label>
+              <input
+                type="text"
+                className="form-input"
+                value={template}
+                onChange={e => setTemplate(e.target.value)}
+                placeholder="default"
+              />
+            </div>
             <div className="form-group">
               <label className="form-label">Memory</label>
               <input

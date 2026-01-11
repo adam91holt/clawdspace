@@ -36,7 +36,8 @@ export const api = {
     cpus: number,
     gpu: boolean = false,
     repo?: { repoUrl: string; repoBranch?: string; repoDest?: string },
-    envFileText?: string
+    envFileText?: string,
+    template?: string
   ) =>
     request<{ space: Space }>('/spaces', {
       method: 'POST',
@@ -45,6 +46,7 @@ export const api = {
         memory,
         cpus,
         gpu,
+        ...(template ? { template } : {}),
         ...(repo || {}),
         ...(envFileText ? { envFileText } : {})
       })

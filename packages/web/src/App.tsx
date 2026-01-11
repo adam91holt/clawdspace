@@ -63,9 +63,10 @@ function App() {
     memory: string,
     cpus: number,
     repo?: { repoUrl: string; repoBranch?: string; repoDest?: string },
-    envFileText?: string
+    envFileText?: string,
+    template?: string
   ) => {
-    await api.createSpace(name, memory, cpus, false, repo, envFileText);
+    await api.createSpace(name, memory, cpus, false, repo, envFileText, template);
     setShowCreate(false);
     fetchSpaces();
   };
