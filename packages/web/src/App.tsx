@@ -7,12 +7,14 @@ import { Space, SystemInfo } from './types';
 import { api } from './api';
 import { SpaceStatsModal } from './components/SpaceStatsModal';
 import { FileBrowserModal } from './components/FileBrowserModal';
+import { TerminalModal } from './components/TerminalModal';
 
 function App() {
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [system, setSystem] = useState<SystemInfo | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [execSpace, setExecSpace] = useState<string | null>(null);
+  const [terminalSpace, setTerminalSpace] = useState<string | null>(null);
   const [statsSpace, setStatsSpace] = useState<string | null>(null);
   const [filesSpace, setFilesSpace] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -92,6 +94,7 @@ function App() {
         <SpaceList
           spaces={spaces}
           onExec={setExecSpace}
+          onTerminal={setTerminalSpace}
           onFiles={setFilesSpace}
           onStats={setStatsSpace}
           onStop={handleStop}
@@ -112,6 +115,13 @@ function App() {
           spaceName={execSpace}
           onClose={() => setExecSpace(null)}
           onExec={fetchSpaces}
+        />
+      )}
+
+      {terminalSpace && (
+        <TerminalModal
+          spaceName={terminalSpace}
+          onClose={() => setTerminalSpace(null)}
         />
       )}
 

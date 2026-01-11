@@ -12,11 +12,12 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "dockerode": "^4.0.0",
     "express": "^4.18.2",
     "express-ws": "^5.0.2",
-    "uuid": "^9.0.0",
-    "cors": "^2.8.5"
+    "node-pty": "^1.0.0",
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

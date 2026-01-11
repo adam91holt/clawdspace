@@ -3,6 +3,7 @@ import { Space } from '../types';
 interface Props {
   spaces: Space[];
   onExec: (name: string) => void;
+  onTerminal: (name: string) => void;
   onFiles: (name: string) => void;
   onStats: (name: string) => void;
   onStop: (name: string) => void;
@@ -26,7 +27,7 @@ function formatDate(str: string): string {
   return new Date(str).toLocaleDateString();
 }
 
-export function SpaceList({ spaces, onExec, onFiles, onStats, onStop, onStart, onDestroy }: Props) {
+export function SpaceList({ spaces, onExec, onTerminal, onFiles, onStats, onStop, onStart, onDestroy }: Props) {
   if (spaces.length === 0) {
     return (
       <div className="empty-state">
@@ -78,6 +79,9 @@ export function SpaceList({ spaces, onExec, onFiles, onStats, onStop, onStart, o
               <div className="actions">
                 <button className="btn btn-sm btn-ghost" onClick={() => onExec(space.name)}>
                   Exec
+                </button>
+                <button className="btn btn-sm btn-ghost" onClick={() => onTerminal(space.name)}>
+                  Terminal
                 </button>
                 <button className="btn btn-sm btn-ghost" onClick={() => onFiles(space.name)}>
                   Files

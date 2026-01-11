@@ -1,11 +1,15 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import path from 'path';
+import expressWs from 'express-ws';
 import spacesRouter from './routes/spaces';
 import systemRouter from './routes/system';
 import { startAutoSleepWorker } from './docker';
+import { startTerminalSession } from './terminal';
 
-const app = express();
+const appBase = express();
+const wsInstance = expressWs(appBase);
+const app = wsInstance.app;
 
 const PORT = parseInt(process.env.PORT || '7777');
 const API_KEY = process.env.API_KEY || 'clawdspace_dev_key';
@@ -35,13 +39,40 @@ const auth = (req: Request, res: Response, next: NextFunction) => {
   res.status(401).json({ error: 'Unauthorized' });
 };
 
+function isWsAuthed(req: Request): boolean {
+  const authHeader = req.headers.authorization;
+  const apiKey = req.query.key as string | undefined;
+  return authHeader === `Bearer ${API_KEY}` || apiKey === API_KEY;
+}
+
 // API routes
 app.use('/api/spaces', auth, spacesRouter);
 app.use('/api/system', auth, systemRouter);
 
+// Terminal websocket (admin)
+app.ws('/api/spaces/:name/terminal', async (ws, req) => {
+  try {
+    if (!isWsAuthed(req)) {
+      ws.close();
+      return;
+    }
+
+    await startTerminalSession({
+      name: req.params.name,
+      ws
+    });
+  } catch {
+    try {
+      ws.close();
+    } catch {
+      // ignore
+    }
+  }
+});
+
 // Health check
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', version: '1.1.0' });
+  res.json({ status: 'ok', version: '1.2.0' });
 });
 
 // SPA fallback
