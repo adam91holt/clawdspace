@@ -31,26 +31,65 @@ async function initWorkspaceVolume(spaceName: string): Promise<void> {
   // Ensure the sandbox user can write into the per-space volume.
   // Do this via a short-lived helper container so we do not touch host paths directly.
   const volumeName = getVolumeName(spaceName);
+  const helperName = `${PREFIX}${spaceName}-volume-init`;
+
+  // Clean up any old helper (best effort)
+  try {
+    await docker.getContainer(helperName).remove({ force: true });
+  } catch {
+    // ignore
+  }
+
+  const cmd = [
+    'sh',
+    '-lc',
+    [
+      'set -e',
+      'id',
+      'ls -ld /workspace || true',
+      'chown -R 1001:1001 /workspace',
+      'chmod -R u+rwX,g+rwX /workspace',
+      'ls -ld /workspace || true'
+    ].join(' && ')
+  ];
 
   const helper = await docker.createContainer({
     Image: IMAGE,
-    Entrypoint: [],
-    User: "root",
+    name: helperName,
+    User: 'root',
     WorkingDir: WORKSPACE_MOUNT,
     HostConfig: {
-      AutoRemove: true,
-      NetworkMode: "none",
-      Mounts: [{ Type: "volume", Source: volumeName, Target: WORKSPACE_MOUNT, ReadOnly: false }]
+      AutoRemove: false,
+      NetworkMode: 'none',
+      Mounts: [{ Type: 'volume', Source: volumeName, Target: WORKSPACE_MOUNT, ReadOnly: false }]
     },
-    Cmd: ["sh", "-lc", "chown -R 1001:1001 /workspace && chmod -R u+rwX,g+rwX /workspace"],
-    Labels: { "clawdspace.kind": "volume-init", "clawdspace.space": spaceName }
+    Cmd: cmd,
+    Labels: { 'clawdspace.kind': 'volume-init', 'clawdspace.space': spaceName }
   });
 
   await helper.start();
   const res = await helper.wait();
+
+  try {
+    const logs = await helper.logs({ stdout: true, stderr: true });
+    const logText = Buffer.isBuffer(logs) ? logs.toString('utf8') : String(logs);
+    if (logText.trim()) {
+      console.log(`[volume-init:${spaceName}] ${logText.trim()}`);
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    await helper.remove({ force: true });
+  } catch {
+    // ignore
+  }
+
   if ((res as any)?.StatusCode !== 0) {
     throw new Error(`Failed to initialize volume for ${spaceName}`);
   }
+
 }
 
 
