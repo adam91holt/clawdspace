@@ -46,7 +46,10 @@ async function initWorkspaceVolume(spaceName: string): Promise<void> {
   });
 
   await helper.start();
-  await helper.wait();
+  const res = await helper.wait();
+  if ((res as any)?.StatusCode !== 0) {
+    throw new Error(`Failed to initialize volume for ${spaceName}`);
+  }
 }
 
 
