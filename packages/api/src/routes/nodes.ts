@@ -1,9 +1,12 @@
 import { Router, Request, Response } from 'express';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { NodeInfo } from '../types';
 
 const router = Router();
+const execAsync = promisify(exec);
 
-function parseHostsEnv(raw: string | undefined): NodeInfo[] {
+function parseHostsEnv(raw: string | undefined): Array<{ name: string; url: string }> {
   if (!raw) return [];
 
   // Format: name=url,name2=url2
@@ -13,11 +16,7 @@ function parseHostsEnv(raw: string | undefined): NodeInfo[] {
     .filter(Boolean)
     .map(entry => {
       const [name, url] = entry.split('=');
-      return {
-        name: (name || '').trim(),
-        url: (url || '').trim(),
-        status: 'offline' as const
-      };
+      return { name: (name || '').trim(), url: (url || '').trim() };
     })
     .filter(n => n.name && n.url);
 }
@@ -32,11 +31,61 @@ async function fetchJson(url: string, apiKey: string, path: string): Promise<any
   return res.json();
 }
 
-// GET /nodes - list known nodes (from env)
+async function tailscalePeers(): Promise<Array<{ name: string; baseUrl: string }>> {
+  try {
+    const { stdout } = await execAsync('tailscale status --json', { timeout: 4000 });
+    const data = JSON.parse(stdout);
+
+    const self = data.Self;
+    const selfName = (self?.HostName || self?.DNSName || 'self') as string;
+
+    const peersObj = (data.Peer || {}) as Record<string, any>;
+    const peers = Object.values(peersObj);
+
+    const out: Array<{ name: string; baseUrl: string }> = [];
+
+    // include self as localhost (from the perspective of this node)
+    out.push({ name: selfName.replace(/\.$/, ''), baseUrl: 'http://localhost:7777' });
+
+    for (const p of peers) {
+      if (!p || p.Online !== true) continue;
+
+      const dnsName = (p.DNSName || '').toString().replace(/\.$/, '');
+      const hostName = (p.HostName || '').toString();
+
+      const name = (hostName || dnsName || p.ID || 'peer').toString();
+
+      // Use DNSName when available: tailscale magic DNS
+      const host = dnsName || hostName;
+      if (!host) continue;
+
+      out.push({ name, baseUrl: `http://${host}:7777` });
+    }
+
+    // de-dupe by baseUrl
+    const seen = new Set<string>();
+    return out.filter(n => (seen.has(n.baseUrl) ? false : (seen.add(n.baseUrl), true)));
+  } catch {
+    return [];
+  }
+}
+
+async function resolveNodes(): Promise<Array<{ name: string; url: string }>> {
+  // Priority:
+  // 1) Explicit env var
+  // 2) Tailscale autodiscovery
+  const env = parseHostsEnv(process.env.CLAWDSPACE_NODES);
+  if (env.length) return env;
+
+  const peers = await tailscalePeers();
+  return peers.map(p => ({ name: p.name, url: p.baseUrl }));
+}
+
+// GET /nodes - list known nodes
 router.get('/', async (_req: Request, res: Response) => {
   try {
     const apiKey = process.env.API_KEY || '';
-    const nodes = parseHostsEnv(process.env.CLAWDSPACE_NODES);
+    const nodes = await resolveNodes();
 
     const results: NodeInfo[] = await Promise.all(
       nodes.map(async (n) => {
