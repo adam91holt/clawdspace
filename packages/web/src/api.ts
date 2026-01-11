@@ -88,7 +88,19 @@ export const api = {
 
   getNodes: () => request<{ nodes: NodeInfo[]; lastUpdatedAt?: number }>('/nodes'),
 
-  getAudit: (space?: string) => request<{ events: any[] }>(`/audit${space ? `?space=${encodeURIComponent(space)}` : ''}`)
+  getAudit: (space?: string) => request<{ events: any[] }>(`/audit${space ? `?space=${encodeURIComponent(space)}` : ''}`),
+
+  getTemplates: () => request<{ templates: Array<{ name: string; description?: string }> }>('/templates'),
+
+  getTemplate: (name: string) => request<{ name: string; yaml: string }>(`/templates/${encodeURIComponent(name)}`),
+
+  upsertTemplate: (yaml: string) =>
+    request<{ template: any }>('/templates', {
+      method: 'PUT',
+      body: JSON.stringify({ yaml })
+    }),
+
+  deleteTemplate: (name: string) => request<{ message: string }>(`/templates/${encodeURIComponent(name)}`, { method: 'DELETE' })
 };
 
 export function setApiKey(key: string) {

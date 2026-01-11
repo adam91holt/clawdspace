@@ -12,6 +12,7 @@ import { FileBrowserModal } from './components/FileBrowserModal';
 import { TerminalModal } from './components/TerminalModal';
 import { AuditModal } from './components/AuditModal';
 import { ObservabilityModal } from './components/ObservabilityModal';
+import { TemplatesModal } from './components/TemplatesModal';
 
 function App() {
   const [spaces, setSpaces] = useState<Space[]>([]);
@@ -25,6 +26,7 @@ function App() {
   const [observabilitySpace, setObservabilitySpace] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [nodes, setNodes] = useState<any[] | null>(null);
+  const [showTemplates, setShowTemplates] = useState(false);
 
   const fetchSpaces = useCallback(async () => {
     try {
@@ -89,9 +91,14 @@ function App() {
     <div className="container">
       <header className="header">
         <h1><span>🚀</span> Clawdspace</h1>
-        <span className="updated">
-          {system && `Updated: ${new Date().toLocaleTimeString()}`}
-        </span>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button className="btn btn-sm" onClick={() => setShowTemplates(true)}>
+            Templates
+          </button>
+          <span className="updated">
+            {system && `Updated: ${new Date().toLocaleTimeString()}`}
+          </span>
+        </div>
       </header>
 
       <NodesPanel onNodes={setNodes} />
@@ -165,6 +172,12 @@ function App() {
         <ObservabilityModal
           spaceName={observabilitySpace}
           onClose={() => setObservabilitySpace(null)}
+        />
+      )}
+
+      {showTemplates && (
+        <TemplatesModal
+          onClose={() => setShowTemplates(false)}
         />
       )}
 

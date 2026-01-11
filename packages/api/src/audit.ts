@@ -13,7 +13,9 @@ export type AuditEvent = {
     | 'space.shell'
     | 'space.file.write'
     | 'terminal.open'
-    | 'terminal.close';
+    | 'terminal.close'
+    | 'template.upsert'
+    | 'template.delete';
   meta?: Record<string, unknown>;
 };
 

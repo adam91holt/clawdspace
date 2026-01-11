@@ -6,10 +6,12 @@ import spacesRouter from './routes/spaces';
 import systemRouter from './routes/system';
 import nodesRouter from './routes/nodes';
 import auditRouter from './routes/audit';
+import templatesRouter from './routes/templates';
 import { startAutoSleepWorker } from './docker';
 import { startTerminalSession } from './terminal';
 import { startNodesCacheWorker } from './nodesCache';
 import { startHistoryIngestWorker } from './historyIngest';
+import { ensureDefaultTemplates } from './templates/init';
 
 const appBase = express();
 const wsInstance = expressWs(appBase);
@@ -54,6 +56,7 @@ app.use('/api/spaces', auth, spacesRouter);
 app.use('/api/system', auth, systemRouter);
 app.use('/api/nodes', auth, nodesRouter);
 app.use('/api/audit', auth, auditRouter);
+app.use('/api/templates', auth, templatesRouter);
 
 // Terminal websocket (admin)
 app.ws('/api/spaces/:name/terminal', async (ws, req) => {
@@ -98,6 +101,11 @@ startAutoSleepWorker(IDLE_TIMEOUT_MS);
 // Start nodes discovery/health cache worker
 startNodesCacheWorker(parseInt(process.env.NODES_REFRESH_MS || '30000'));
 startHistoryIngestWorker(parseInt(process.env.HISTORY_INGEST_MS || '15000'));
+
+// Templates: ensure defaults exist on boot (best effort)
+ensureDefaultTemplates().catch((e) => {
+  console.error('Template init failed:', (e as Error).message);
+});
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {

@@ -4,6 +4,8 @@ import { CreateSpaceRequest, ExecRequest } from '../types';
 import { validateRepoCloneRequest } from '../git';
 import { validateEnvFileWriteRequest } from '../envfile';
 import { getGhToken, isGithubHttpsRepoUrl, toGithubTokenCloneUrl } from '../github';
+import { getTemplate } from '../templates/store';
+import { applyTemplateToCreateRequest } from '../templates/apply';
 
 const router = Router();
 
@@ -20,12 +22,13 @@ router.get('/', async (_req: Request, res: Response) => {
 // POST /spaces - Create space
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const {
+    let {
       name,
       memory = '2g',
       cpus = 1,
       gpu = false,
       image,
+      template,
       repoUrl,
       repoBranch,
       repoDest,
@@ -42,6 +45,23 @@ router.post('/', async (req: Request, res: Response) => {
     const existing = await docker.getContainer(name);
     if (existing) {
       return res.status(409).json({ error: 'Space already exists' });
+    }
+
+    // Apply template defaults (if provided)
+    if (template) {
+      try {
+        const tpl = await getTemplate(template);
+        const merged = applyTemplateToCreateRequest({ req: req.body as CreateSpaceRequest, template: tpl });
+
+        name = merged.name;
+        memory = merged.memory ?? memory;
+        cpus = merged.cpus ?? cpus;
+        gpu = merged.gpu ?? gpu;
+        image = merged.image ?? image;
+        repoDest = merged.repoDest ?? repoDest;
+      } catch (e) {
+        return res.status(400).json({ error: `Invalid template: ${(e as Error).message}` });
+      }
     }
 
     const env = (req.body as CreateSpaceRequest).env;

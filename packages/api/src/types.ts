@@ -54,6 +54,9 @@ export interface CreateSpaceRequest {
   gpu?: boolean;
   image?: string;
 
+  // Optional: apply a saved template by name.
+  template?: string;
+
   // Optional: seed the space by cloning a repo into /workspace.
   repoUrl?: string;
   repoBranch?: string;
