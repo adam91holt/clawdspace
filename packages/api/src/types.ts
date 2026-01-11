@@ -33,6 +33,19 @@ export interface FileEntry {
   mtimeMs: number;
 }
 
+export interface NodeInfo {
+  name: string;
+  url: string;
+  status: 'online' | 'offline';
+  capabilities?: {
+    gpu?: boolean;
+    gpuName?: string;
+    gpuMemory?: string;
+    arch?: string;
+    platform?: string;
+  };
+}
+
 export interface CreateSpaceRequest {
   name: string;
   memory?: string;

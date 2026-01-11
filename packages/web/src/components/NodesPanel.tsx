@@ -1,0 +1,81 @@
+import { useEffect, useState } from 'react';
+import { api } from '../api';
+import { NodeInfo } from '../types';
+
+export function NodesPanel() {
+  const [nodes, setNodes] = useState<NodeInfo[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchNodes() {
+      try {
+        const res = await api.getNodes();
+        if (!mounted) return;
+        setNodes(res.nodes || []);
+        setError(null);
+      } catch (e) {
+        if (!mounted) return;
+        setError((e as Error).message);
+      }
+    }
+
+    fetchNodes();
+    const t = setInterval(fetchNodes, 15000);
+
+    return () => {
+      mounted = false;
+      clearInterval(t);
+    };
+  }, []);
+
+  return (
+    <section className="section" style={{ marginTop: 16 }}>
+      <div className="section-header">
+        <h2>Nodes</h2>
+      </div>
+
+      {error && <div className="alert alert-error">{error}</div>}
+
+      {nodes.length === 0 ? (
+        <div className="empty-state">
+          No nodes configured. Set <span className="text-muted">CLAWDSPACE_NODES</span> on the server.
+        </div>
+      ) : (
+        <table className="spaces-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Status</th>
+              <th>URL</th>
+              <th>Capabilities</th>
+            </tr>
+          </thead>
+          <tbody>
+            {nodes.map(n => (
+              <tr key={n.name}>
+                <td><strong>{n.name}</strong></td>
+                <td>
+                  <span className={`status-badge status-${n.status === 'online' ? 'running' : 'stopped'}`}>
+                    <span className="status-dot"></span>
+                    {n.status}
+                  </span>
+                </td>
+                <td className="text-sm text-muted">{n.url}</td>
+                <td className="text-sm">
+                  {n.capabilities?.gpu ? (
+                    <span>GPU ({n.capabilities.gpuName || 'unknown'})</span>
+                  ) : (
+                    <span className="text-muted">CPU</span>
+                  )}
+                  {n.capabilities?.arch ? <span className="text-muted"> · {n.capabilities.arch}</span> : null}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}

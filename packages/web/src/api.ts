@@ -1,4 +1,4 @@
-import { Space, SystemInfo, ExecResult, SpaceStats, FileEntry } from './types';
+import { Space, SystemInfo, ExecResult, SpaceStats, FileEntry, NodeInfo } from './types';
 
 const API_KEY = localStorage.getItem('clawdspace_key') || '';
 
@@ -63,7 +63,9 @@ export const api = {
       body: JSON.stringify({ contentBase64 })
     }),
 
-  getSystem: () => request<SystemInfo>('/system')
+  getSystem: () => request<SystemInfo>('/system'),
+
+  getNodes: () => request<{ nodes: NodeInfo[] }>('/nodes')
 };
 
 export function setApiKey(key: string) {

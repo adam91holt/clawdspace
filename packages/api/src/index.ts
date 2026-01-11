@@ -4,6 +4,7 @@ import path from 'path';
 import expressWs from 'express-ws';
 import spacesRouter from './routes/spaces';
 import systemRouter from './routes/system';
+import nodesRouter from './routes/nodes';
 import { startAutoSleepWorker } from './docker';
 import { startTerminalSession } from './terminal';
 
@@ -48,6 +49,7 @@ function isWsAuthed(req: Request): boolean {
 // API routes
 app.use('/api/spaces', auth, spacesRouter);
 app.use('/api/system', auth, systemRouter);
+app.use('/api/nodes', auth, nodesRouter);
 
 // Terminal websocket (admin)
 app.ws('/api/spaces/:name/terminal', async (ws, req) => {
@@ -72,7 +74,7 @@ app.ws('/api/spaces/:name/terminal', async (ws, req) => {
 
 // Health check
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', version: '1.2.0' });
+  res.json({ status: 'ok', version: '1.3.0' });
 });
 
 // SPA fallback

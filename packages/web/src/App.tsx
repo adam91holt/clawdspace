@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SpaceList } from './components/SpaceList';
 import { SystemStats } from './components/SystemStats';
+import { NodesPanel } from './components/NodesPanel';
 import { CreateModal } from './components/CreateModal';
 import { ExecModal } from './components/ExecModal';
 import { Space, SystemInfo } from './types';
@@ -102,6 +103,8 @@ function App() {
           onDestroy={handleDestroy}
         />
       </section>
+
+      <NodesPanel />
 
       {showCreate && (
         <CreateModal

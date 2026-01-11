@@ -25,6 +25,20 @@ export interface SpaceStats {
   blockWriteBytes: number;
 }
 
+
+export interface NodeInfo {
+  name: string;
+  url: string;
+  status: 'online' | 'offline';
+  capabilities?: {
+    gpu?: boolean;
+    gpuName?: string;
+    gpuMemory?: string;
+    arch?: string;
+    platform?: string;
+  };
+}
+
 export interface FileEntry {
   name: string;
   path: string;
