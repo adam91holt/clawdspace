@@ -37,7 +37,7 @@ async function initWorkspaceVolume(spaceName: string, volume: Docker.Volume): Pr
 
   const uid = 1001;
   const gid = 1001;
-  await execFileAsync("sh", ["-lc", `mkdir -p "${mountpoint}" && chown -R ${uid}:${gid} "${mountpoint}"`]);
+  await execFileAsync("sh", ["-lc", `mkdir -p "${mountpoint}" && chown -R ${uid}:${gid} "${mountpoint}" && chmod -R u+rwX,g+rwX "${mountpoint}"`]);
 }
 
 
