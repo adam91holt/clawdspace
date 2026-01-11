@@ -15,6 +15,22 @@ export function defaultTemplates(): SpaceTemplate[] {
       workspace: { defaultRepoDest: 'repo' }
     },
     {
+      name: 'gpu',
+      description: 'GPU-enabled space (internet)',
+      resources: {
+        memory: '8g',
+        cpus: 4,
+        gpu: true,
+        image: 'pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime'
+      },
+      security: { writableRootfs: true },
+      network: {
+        mode: 'internet',
+        blockCidrs: ['10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '100.64.0.0/10', '169.254.0.0/16']
+      },
+      workspace: { defaultRepoDest: 'repo' }
+    },
+    {
       name: 'offline',
       description: 'No network',
       resources: { memory: '2g', cpus: 1, gpu: false },
