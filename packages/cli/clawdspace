@@ -30,7 +30,7 @@ usage() {
   echo "clawdspace - Multi-server sandboxed execution environments"
   echo ""
   echo "Usage:"
-  echo "  clawdspace create <name> [--server <server>] [--memory 2g] [--cpus 1] [--repo <url>] [--branch <branch>] [--dest <folder>] [--github-token <token>]"
+  echo "  clawdspace create <name> [--server <server>] [--memory 2g] [--cpus 1] [--repo <url>] [--branch <branch>] [--dest <folder>] [--github-token <token>] [--github-token-stdin]"
   echo "  clawdspace list [--server <server>]"
   echo "  clawdspace exec <name> <command>"
   echo "  clawdspace stop <name>"
@@ -175,6 +175,7 @@ cmd_create() {
   local repo_branch=""
   local repo_dest=""
   local github_token=""
+  local github_token_stdin=false
   
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -186,9 +187,25 @@ cmd_create() {
       --branch) repo_branch="$2"; shift 2 ;;
       --dest) repo_dest="$2"; shift 2 ;;
       --github-token) github_token="$2"; shift 2 ;;
+      --github-token-stdin) github_token_stdin=true; shift ;;
       *) if [ -z "$name" ]; then name="$1"; fi; shift ;;
     esac
   done
+
+  if [ "$github_token_stdin" = true ]; then
+    if [ -n "$github_token" ]; then
+      echo -e "${RED}Error: provide either --github-token or --github-token-stdin, not both${NC}"
+      exit 1
+    fi
+
+    if [ -t 0 ]; then
+      echo -e "${RED}Error: --github-token-stdin requires token on stdin${NC}"
+      exit 1
+    fi
+
+    github_token=$(cat -)
+    github_token=$(echo -n "$github_token" | tr -d '\r\n')
+  fi
   
   if [ -z "$name" ]; then
     echo -e "${RED}Error: name required${NC}"
@@ -228,7 +245,10 @@ cmd_create() {
   fi
   if [ -n "$github_token" ]; then
     # NOTE: keep this out of logs; we only send it to the API.
-    payload+=" ,\"env\":{\"GITHUB_TOKEN\":\"$github_token\"}"
+    # Minimal JSON escaping for quotes and backslashes.
+    local gh_escaped=${github_token//\\/\\\\}
+    gh_escaped=${gh_escaped//\"/\\\"}
+    payload+=" ,\"env\":{\"GITHUB_TOKEN\":\"$gh_escaped\"}"
   fi
   payload+="}"
 
