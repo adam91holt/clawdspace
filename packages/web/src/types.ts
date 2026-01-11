@@ -8,6 +8,29 @@ export interface Space {
   memory: number;
   cpus: number;
   lastActivity: string;
+  volume?: {
+    name: string;
+    mountpoint: string;
+  };
+}
+
+export interface SpaceStats {
+  cpuPercent: number;
+  memoryUsageBytes: number;
+  memoryLimitBytes: number;
+  pids: number;
+  networkRxBytes: number;
+  networkTxBytes: number;
+  blockReadBytes: number;
+  blockWriteBytes: number;
+}
+
+export interface FileEntry {
+  name: string;
+  path: string;
+  type: 'file' | 'dir' | 'symlink' | 'other';
+  size: number;
+  mtimeMs: number;
 }
 
 export interface SystemInfo {
@@ -35,6 +58,13 @@ export interface SystemInfo {
     containersRunning: number;
     containersPaused: number;
     images: number;
+  };
+  capabilities?: {
+    gpu: boolean;
+    gpuName?: string;
+    gpuMemory?: string;
+    arch: string;
+    platform: string;
   };
 }
 

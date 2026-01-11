@@ -13,7 +13,7 @@ const IDLE_TIMEOUT_MS = parseInt(process.env.IDLE_TIMEOUT_MS || String(10 * 60 *
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
 // Serve static files (React build)
 app.use(express.static(path.join(__dirname, '../../web/dist')));
@@ -22,16 +22,16 @@ app.use(express.static(path.join(__dirname, '../../web/dist')));
 const auth = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   const apiKey = req.query.key as string | undefined;
-  
+
   if (authHeader === `Bearer ${API_KEY}` || apiKey === API_KEY) {
     return next();
   }
-  
+
   // Allow dashboard access without auth
   if (req.method === 'GET' && !req.path.startsWith('/api/')) {
     return next();
   }
-  
+
   res.status(401).json({ error: 'Unauthorized' });
 };
 
@@ -41,7 +41,7 @@ app.use('/api/system', auth, systemRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', version: '1.0.0' });
+  res.json({ status: 'ok', version: '1.1.0' });
 });
 
 // SPA fallback

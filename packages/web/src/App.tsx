@@ -5,12 +5,16 @@ import { CreateModal } from './components/CreateModal';
 import { ExecModal } from './components/ExecModal';
 import { Space, SystemInfo } from './types';
 import { api } from './api';
+import { SpaceStatsModal } from './components/SpaceStatsModal';
+import { FileBrowserModal } from './components/FileBrowserModal';
 
 function App() {
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [system, setSystem] = useState<SystemInfo | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [execSpace, setExecSpace] = useState<string | null>(null);
+  const [statsSpace, setStatsSpace] = useState<string | null>(null);
+  const [filesSpace, setFilesSpace] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchSpaces = useCallback(async () => {
@@ -88,6 +92,8 @@ function App() {
         <SpaceList
           spaces={spaces}
           onExec={setExecSpace}
+          onFiles={setFilesSpace}
+          onStats={setStatsSpace}
           onStop={handleStop}
           onStart={handleStart}
           onDestroy={handleDestroy}
@@ -106,6 +112,20 @@ function App() {
           spaceName={execSpace}
           onClose={() => setExecSpace(null)}
           onExec={fetchSpaces}
+        />
+      )}
+
+      {statsSpace && (
+        <SpaceStatsModal
+          spaceName={statsSpace}
+          onClose={() => setStatsSpace(null)}
+        />
+      )}
+
+      {filesSpace && (
+        <FileBrowserModal
+          spaceName={filesSpace}
+          onClose={() => setFilesSpace(null)}
         />
       )}
     </div>

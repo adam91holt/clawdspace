@@ -51,7 +51,7 @@ describe('Clawdspace API', () => {
       expect(res.status).toBe(201);
       expect(res.body.space.name).toBe('my-space');
       expect(res.body.space.status).toBe('running');
-      expect(mockDocker.createSpace).toHaveBeenCalledWith('my-space', '2g', 1);
+      expect(mockDocker.createSpace).toHaveBeenCalledWith('my-space', '2g', 1, false, undefined);
     });
 
     it('creates a space with custom memory and cpus', async () => {
@@ -60,7 +60,7 @@ describe('Clawdspace API', () => {
         .send({ name: 'custom-space', memory: '4g', cpus: 2 });
       
       expect(res.status).toBe(201);
-      expect(mockDocker.createSpace).toHaveBeenCalledWith('custom-space', '4g', 2);
+      expect(mockDocker.createSpace).toHaveBeenCalledWith('custom-space', '4g', 2, false, undefined);
     });
 
     it('rejects invalid space names', async () => {
@@ -128,7 +128,7 @@ describe('Clawdspace API', () => {
       
       expect(res.status).toBe(200);
       expect(res.body.message).toBe('Space destroyed');
-      expect(mockDocker.destroySpace).toHaveBeenCalledWith('to-delete');
+      expect(mockDocker.destroySpace).toHaveBeenCalledWith('to-delete', false);
     });
 
     it('returns error for non-existent space', async () => {

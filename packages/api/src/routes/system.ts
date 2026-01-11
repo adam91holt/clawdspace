@@ -25,19 +25,13 @@ function formatUptime(seconds: number): string {
   return `${days}d ${hours}h ${mins}m`;
 }
 
-// Detect GPU capabilities
 async function detectGPU(): Promise<{ hasGPU: boolean; gpuName?: string; gpuMemory?: string }> {
   try {
-    // Try nvidia-smi in various locations
-    const nvidiaSmiPaths = [
-      'nvidia-smi',
-      '/usr/bin/nvidia-smi',
-      '/usr/lib/wsl/lib/nvidia-smi'
-    ];
-    
-    for (const path of nvidiaSmiPaths) {
+    const nvidiaSmiPaths = ['nvidia-smi', '/usr/bin/nvidia-smi', '/usr/lib/wsl/lib/nvidia-smi'];
+
+    for (const p of nvidiaSmiPaths) {
       try {
-        const { stdout } = await execAsync(`${path} --query-gpu=name,memory.total --format=csv,noheader`, { timeout: 5000 });
+        const { stdout } = await execAsync(`${p} --query-gpu=name,memory.total --format=csv,noheader`, { timeout: 5000 });
         const [name, memory] = stdout.trim().split(',').map(s => s.trim());
         return { hasGPU: true, gpuName: name, gpuMemory: memory };
       } catch {
@@ -45,7 +39,7 @@ async function detectGPU(): Promise<{ hasGPU: boolean; gpuName?: string; gpuMemo
       }
     }
   } catch {
-    // No GPU
+    // ignore
   }
   return { hasGPU: false };
 }
@@ -57,17 +51,15 @@ router.get('/', async (_req: Request, res: Response) => {
     const totalMem = os.totalmem();
     const freeMem = os.freemem();
     const uptime = os.uptime();
-    
-    // Docker info
+
     const dockerInfo = await docker.getDockerInfo();
-    
-    // GPU detection
+
     const gpu = await detectGPU();
-    
+
     // Disk usage
     let diskUsage: SystemInfo['disk'] = null;
     try {
-      const { stdout } = await execAsync("df -h / | tail -1");
+      const { stdout } = await execAsync('df -h / | tail -1');
       const parts = stdout.trim().split(/\s+/);
       diskUsage = {
         total: parts[1],
@@ -78,7 +70,7 @@ router.get('/', async (_req: Request, res: Response) => {
     } catch {
       // Ignore disk errors
     }
-    
+
     const systemInfo: SystemInfo = {
       hostname: os.hostname(),
       platform: os.platform(),
@@ -101,8 +93,7 @@ router.get('/', async (_req: Request, res: Response) => {
         images: dockerInfo.Images || 0
       }
     };
-    
-    // Add capabilities
+
     const capabilities = {
       gpu: gpu.hasGPU,
       gpuName: gpu.gpuName,
@@ -110,18 +101,17 @@ router.get('/', async (_req: Request, res: Response) => {
       arch: os.arch(),
       platform: os.platform()
     };
-    
+
     res.json({ ...systemInfo, capabilities });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
 });
 
-// GET /system/capabilities - Just capabilities
 router.get('/capabilities', async (_req: Request, res: Response) => {
   try {
     const gpu = await detectGPU();
-    
+
     res.json({
       gpu: gpu.hasGPU,
       gpuName: gpu.gpuName,

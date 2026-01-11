@@ -17,18 +17,18 @@ router.get('/', async (_req: Request, res: Response) => {
 // POST /spaces - Create space
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { name, memory = '2g', cpus = 1, gpu = false, image } = req.body as CreateSpaceRequest & { gpu?: boolean; image?: string };
-    
+    const { name, memory = '2g', cpus = 1, gpu = false, image } = req.body as CreateSpaceRequest;
+
     if (!name || !/^[a-zA-Z0-9_-]+$/.test(name)) {
       return res.status(400).json({ error: 'Invalid name (alphanumeric, _, - only)' });
     }
-    
+
     // Check if exists
     const existing = await docker.getContainer(name);
     if (existing) {
       return res.status(409).json({ error: 'Space already exists' });
     }
-    
+
     const space = await docker.createSpace(name, memory, cpus, gpu, image);
     res.status(201).json({ space });
   } catch (err) {
@@ -43,7 +43,7 @@ router.get('/:name', async (req: Request, res: Response) => {
     if (!container) {
       return res.status(404).json({ error: 'Space not found' });
     }
-    
+
     const space = await docker.formatSpace(container);
     res.json({ space });
   } catch (err) {
@@ -54,7 +54,8 @@ router.get('/:name', async (req: Request, res: Response) => {
 // DELETE /spaces/:name - Destroy space
 router.delete('/:name', async (req: Request, res: Response) => {
   try {
-    await docker.destroySpace(req.params.name);
+    const removeVolume = String(req.query.removeVolume || 'false') === 'true';
+    await docker.destroySpace(req.params.name, removeVolume);
     res.json({ message: 'Space destroyed' });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -85,13 +86,64 @@ router.post('/:name/start', async (req: Request, res: Response) => {
 router.post('/:name/exec', async (req: Request, res: Response) => {
   try {
     const { command } = req.body as ExecRequest;
-    
+
     if (!command) {
       return res.status(400).json({ error: 'Command required' });
     }
-    
+
     const result = await docker.execInSpace(req.params.name, command);
     res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// GET /spaces/:name/stats - Per-space resource stats
+router.get('/:name/stats', async (req: Request, res: Response) => {
+  try {
+    const stats = await docker.getSpaceStats(req.params.name);
+    res.json({ stats });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// GET /spaces/:name/files?path=/ - List directory (scoped to /workspace)
+router.get('/:name/files', async (req: Request, res: Response) => {
+  try {
+    const relPath = String(req.query.path || '/');
+    const entries = await docker.listFiles(req.params.name, relPath);
+    res.json({ path: relPath, entries });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// GET /spaces/:name/file?path=/foo.txt - Read file (base64, scoped to /workspace)
+router.get('/:name/file', async (req: Request, res: Response) => {
+  try {
+    const relPath = String(req.query.path || '');
+    if (!relPath) return res.status(400).json({ error: 'path required' });
+
+    const maxBytes = req.query.maxBytes ? parseInt(String(req.query.maxBytes)) : undefined;
+    const data = await docker.readFile(req.params.name, relPath, maxBytes);
+    res.json({ path: relPath, ...data });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// PUT /spaces/:name/file?path=/foo.txt - Write file (base64, scoped to /workspace)
+router.put('/:name/file', async (req: Request, res: Response) => {
+  try {
+    const relPath = String(req.query.path || '');
+    if (!relPath) return res.status(400).json({ error: 'path required' });
+
+    const contentBase64 = (req.body?.contentBase64 as string | undefined) || '';
+    if (!contentBase64) return res.status(400).json({ error: 'contentBase64 required' });
+
+    await docker.writeFile(req.params.name, relPath, contentBase64);
+    res.json({ message: 'OK' });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
