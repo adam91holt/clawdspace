@@ -101,12 +101,16 @@ router.post('/', async (req: Request, res: Response) => {
     try {
       const cloneReq = validateRepoCloneRequest({ repoUrl, repoBranch, repoDest } as any);
       if (cloneReq) {
+        // If the template explicitly disables network, cloning is not possible.
+        if (templateNetworkMode === 'none') {
+          return res.status(400).json({ error: 'Repo clone failed: selected template has network disabled' });
+        }
+
         const dest = cloneReq.repoDest || 'repo';
         const branchArg = cloneReq.repoBranch ? `-b ${cloneReq.repoBranch}` : '';
 
         // Private GitHub https repos:
         // Prefer a per-space token provided by the caller (env.GITHUB_TOKEN), otherwise fall back to host gh token.
-        // This lets you create spaces from a remote client without SSHing into the server.
         let urlForClone = cloneReq.repoUrl;
         const requestEnv = (req.body as CreateSpaceRequest).env;
 
@@ -131,7 +135,6 @@ router.post('/', async (req: Request, res: Response) => {
             'set -e',
             `cd /workspace`,
             `rm -rf "${dest}"`,
-            // Clone may use a short-lived credentialed URL, but reset origin to the clean URL afterward.
             `git clone ${branchArg} "${urlForClone}" "${dest}"`,
             ...(isGithubHttpsRepoUrl(cloneReq.repoUrl)
               ? [`cd "${dest}"`, `git remote set-url origin "${cloneReq.repoUrl.replace(/\.git$/, '')}.git"`]
