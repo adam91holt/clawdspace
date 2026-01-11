@@ -18,6 +18,7 @@ export const SpaceTemplateSchema = z
   .object({
     name: TemplateName,
     description: z.string().max(200).optional(),
+    managed: z.boolean().optional(),
 
     resources: z
       .object({

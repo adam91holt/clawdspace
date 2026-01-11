@@ -16,12 +16,12 @@ export function defaultTemplates(): SpaceTemplate[] {
     },
     {
       name: 'gpu',
-      description: 'GPU-enabled space (internet)',
+      description: 'GPU-enabled space (internet) using clawdspace sandbox image',
+      managed: true,
       resources: {
         memory: '8g',
         cpus: 4,
-        gpu: true,
-        image: 'pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime'
+        gpu: true
       },
       security: { writableRootfs: true },
       network: {

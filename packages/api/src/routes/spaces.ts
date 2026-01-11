@@ -67,6 +67,12 @@ router.post('/', async (req: Request, res: Response) => {
         image = merged.image ?? image;
         repoDest = merged.repoDest ?? repoDest;
 
+        // Managed templates can override the chosen base image.
+        // This keeps GPU spaces on our sandbox image (git/apt/etc) while still enabling GPU runtime.
+        if (tpl.managed) {
+          image = undefined;
+        }
+
         templateLabels = {
           'clawdspace.template': tpl.name,
           'clawdspace.network.mode': tpl.network?.mode || 'internet'
