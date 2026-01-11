@@ -18,6 +18,25 @@ function App() {
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [system, setSystem] = useState<SystemInfo | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+
+  // If the dashboard is opened with ?key=..., persist it to localStorage so UI actions work.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const key = (params.get('key') || '').trim();
+    if (!key) return;
+
+    try {
+      localStorage.setItem('clawdspace_key', key);
+    } catch {
+      // ignore
+    }
+
+    // Remove the key from the URL (avoid leaking via copy/paste / screenshots).
+    params.delete('key');
+    const newSearch = params.toString();
+    const newUrl = `${window.location.pathname}${newSearch ? `?${newSearch}` : ''}${window.location.hash}`;
+    window.history.replaceState({}, '', newUrl);
+  }, []);
   const [execSpace, setExecSpace] = useState<string | null>(null);
   const [terminalSpace, setTerminalSpace] = useState<string | null>(null);
   const [statsSpace, setStatsSpace] = useState<string | null>(null);
