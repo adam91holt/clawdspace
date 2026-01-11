@@ -11,7 +11,7 @@ export function toGithubTokenCloneUrl(repoUrl: string, token: string): string {
   // Use x-access-token for GitHub HTTPS auth.
   // Avoid logging this URL anywhere.
   const u = repoUrl.trim().replace(/\.git$/, '') + '.git';
-  return `https://x-access-token:${token}@github.com/${u.split('github.com/')[1]}`;
+  return `https://x-access-token:${encodeURIComponent(token)}@github.com/${u.split('github.com/')[1]}`;
 }
 
 export async function verifyGhAuth(): Promise<boolean> {

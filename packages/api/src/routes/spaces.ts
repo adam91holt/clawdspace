@@ -67,14 +67,23 @@ router.post('/', async (req: Request, res: Response) => {
         const dest = cloneReq.repoDest || 'repo';
         const branchArg = cloneReq.repoBranch ? `-b ${cloneReq.repoBranch}` : '';
 
-        // Private GitHub https repos: use the host's gh token to clone.
-        // This avoids passing PATs over the wire and makes cloning "just work" as long as the server is gh-authed.
+        // Private GitHub https repos:
+        // Prefer a per-space token provided by the caller (env.GITHUB_TOKEN), otherwise fall back to host gh token.
+        // This lets you create spaces from a remote client without SSHing into the server.
         let urlForClone = cloneReq.repoUrl;
+        const requestEnv = (req.body as CreateSpaceRequest).env;
+
         if (isGithubHttpsRepoUrl(cloneReq.repoUrl)) {
-          const token = await getGhToken();
+          const tokenFromRequest = requestEnv?.GITHUB_TOKEN?.trim();
+          const token = tokenFromRequest || (await getGhToken());
+
           if (!token) {
-            return res.status(400).json({ error: 'Repo clone failed: host is not authenticated to GitHub (run `gh auth login` on the server)' });
+            return res.status(400).json({
+              error:
+                'Repo clone failed: provide env.GITHUB_TOKEN (PAT) or authenticate the host with `gh auth login`'
+            });
           }
+
           urlForClone = toGithubTokenCloneUrl(cloneReq.repoUrl, token);
         }
 

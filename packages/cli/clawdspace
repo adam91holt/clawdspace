@@ -30,7 +30,7 @@ usage() {
   echo "clawdspace - Multi-server sandboxed execution environments"
   echo ""
   echo "Usage:"
-  echo "  clawdspace create <name> [--server <server>] [--memory 2g] [--cpus 1] [--repo <url>] [--branch <branch>] [--dest <folder>]"
+  echo "  clawdspace create <name> [--server <server>] [--memory 2g] [--cpus 1] [--repo <url>] [--branch <branch>] [--dest <folder>] [--github-token <token>]"
   echo "  clawdspace list [--server <server>]"
   echo "  clawdspace exec <name> <command>"
   echo "  clawdspace stop <name>"
@@ -174,6 +174,7 @@ cmd_create() {
   local repo_url=""
   local repo_branch=""
   local repo_dest=""
+  local github_token=""
   
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -184,6 +185,7 @@ cmd_create() {
       --repo) repo_url="$2"; shift 2 ;;
       --branch) repo_branch="$2"; shift 2 ;;
       --dest) repo_dest="$2"; shift 2 ;;
+      --github-token) github_token="$2"; shift 2 ;;
       *) if [ -z "$name" ]; then name="$1"; fi; shift ;;
     esac
   done
@@ -223,6 +225,10 @@ cmd_create() {
     payload+=" ,\"repoUrl\":\"$repo_url\""
     if [ -n "$repo_branch" ]; then payload+=" ,\"repoBranch\":\"$repo_branch\""; fi
     if [ -n "$repo_dest" ]; then payload+=" ,\"repoDest\":\"$repo_dest\""; fi
+  fi
+  if [ -n "$github_token" ]; then
+    # NOTE: keep this out of logs; we only send it to the API.
+    payload+=" ,\"env\":{\"GITHUB_TOKEN\":\"$github_token\"}"
   fi
   payload+="}"
 
