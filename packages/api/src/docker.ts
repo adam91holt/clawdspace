@@ -224,7 +224,7 @@ export async function createSpace(
     CapDrop: ['ALL'],
     SecurityOpt: ['no-new-privileges'],
 
-    ReadonlyRootfs: true,
+    ReadonlyRootfs: false,
     Tmpfs: {
       '/tmp': 'rw,noexec,nosuid,nodev,size=512m',
       '/run': 'rw,noexec,nosuid,nodev,size=16m'
