@@ -232,7 +232,8 @@ export async function createSpace(
 
     PidsLimit: 512,
 
-    NetworkMode: 'none',
+    // Network is required for cloning repos, package installs, etc.
+    NetworkMode: 'bridge',
 
     Mounts: [
       {
