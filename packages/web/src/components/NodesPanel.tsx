@@ -3,7 +3,7 @@ import { api } from '../api';
 import { NodeInfo } from '../types';
 
 export function NodesPanel() {
-  const [nodes, setNodes] = useState<NodeInfo[]>([]);
+  const [nodes, setNodes] = useState<NodeInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -18,6 +18,7 @@ export function NodesPanel() {
       } catch (e) {
         if (!mounted) return;
         setError((e as Error).message);
+        setNodes([]);
       }
     }
 
@@ -33,14 +34,17 @@ export function NodesPanel() {
   return (
     <section className="section" style={{ marginTop: 16 }}>
       <div className="section-header">
-        <h2>Nodes</h2>
+        <h2>⟩ Nodes</h2>
+        <span className="text-muted text-sm">Tailscale auto-discovery</span>
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      {nodes.length === 0 ? (
+      {nodes === null ? (
+        <div className="loading">Loading nodes…</div>
+      ) : nodes.length === 0 ? (
         <div className="empty-state">
-          No nodes configured. Set <span className="text-muted">CLAWDSPACE_NODES</span> on the server.
+          No nodes found. Make sure Tailscale is running on this host, and other nodes are reachable on port 7777.
         </div>
       ) : (
         <table className="spaces-table">
@@ -54,7 +58,7 @@ export function NodesPanel() {
           </thead>
           <tbody>
             {nodes.map(n => (
-              <tr key={n.name}>
+              <tr key={n.name + n.url}>
                 <td><strong>{n.name}</strong></td>
                 <td>
                   <span className={`status-badge status-${n.status === 'online' ? 'running' : 'stopped'}`}>
@@ -65,7 +69,7 @@ export function NodesPanel() {
                 <td className="text-sm text-muted">{n.url}</td>
                 <td className="text-sm">
                   {n.capabilities?.gpu ? (
-                    <span>GPU ({n.capabilities.gpuName || 'unknown'})</span>
+                    <span>GPU {n.capabilities.gpuName ? `(${n.capabilities.gpuName})` : ''}</span>
                   ) : (
                     <span className="text-muted">CPU</span>
                   )}
