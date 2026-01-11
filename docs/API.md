@@ -1,55 +1,43 @@
-# Clawdspace API Documentation
+# Clawdspace API
 
-## Base URL
+Base URL:
 
 ```
 http://your-server:7777/api
 ```
 
-## Authentication
+## Auth
 
-All API requests require a Bearer token:
+The server accepts either:
+
+1) **Query param** (recommended for browsers):
+
+```
+GET /api/spaces?key=YOUR_API_KEY
+```
+
+2) **Authorization header** (recommended for scripts):
 
 ```bash
 curl -H "Authorization: Bearer YOUR_API_KEY" http://localhost:7777/api/spaces
 ```
 
----
-
 ## Spaces
 
-### List Spaces
+### List spaces
 
 ```http
 GET /api/spaces
 ```
 
-**Response:**
-```json
-{
-  "spaces": [
-    {
-      "name": "my-space",
-      "id": "abc123def456",
-      "status": "running",
-      "created": "2024-01-10T10:00:00Z",
-      "started": "2024-01-10T10:00:01Z",
-      "image": "clawdspace:latest",
-      "memory": 2147483648,
-      "cpus": 1,
-      "lastActivity": "2024-01-10T10:05:00Z"
-    }
-  ]
-}
-```
-
-### Create Space
+### Create space
 
 ```http
 POST /api/spaces
 ```
 
-**Request Body:**
+Body:
+
 ```json
 {
   "name": "my-space",
@@ -60,211 +48,96 @@ POST /api/spaces
 }
 ```
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `name` | string | required | Alphanumeric, dashes, underscores |
-| `memory` | string | `"2g"` | Memory limit (e.g., "512m", "4g") |
-| `cpus` | number | `1` | CPU cores |
-| `gpu` | boolean | `false` | Enable GPU passthrough |
-| `image` | string | auto | Docker image (auto-selects PyTorch for GPU) |
-
-**Response:**
-```json
-{
-  "space": {
-    "name": "my-space",
-    "id": "abc123def456",
-    "status": "running",
-    ...
-  }
-}
-```
-
-### Get Space
+### Get space
 
 ```http
 GET /api/spaces/:name
 ```
 
-### Delete Space
+### Delete space
 
 ```http
-DELETE /api/spaces/:name
+DELETE /api/spaces/:name?removeVolume=false
 ```
 
-### Stop (Pause) Space
+### Pause / resume
 
 ```http
 POST /api/spaces/:name/stop
-```
-
-Pauses the container. No CPU usage while paused.
-
-### Start (Resume) Space
-
-```http
 POST /api/spaces/:name/start
 ```
 
-Resumes a paused container.
-
-### Execute Command
+### Exec
 
 ```http
 POST /api/spaces/:name/exec
 ```
 
-**Request Body:**
+Body:
+
 ```json
-{
-  "command": "python3 --version"
-}
+{ "command": "python3 --version" }
 ```
 
-Or as array:
-```json
-{
-  "command": ["python3", "-c", "print('hello')"]
-}
-```
-
-**Response:**
-```json
-{
-  "stdout": "Python 3.12.0\n",
-  "stderr": "",
-  "exitCode": 0
-}
-```
-
----
-
-## System
-
-### Get System Info
+### Stats
 
 ```http
-GET /api/system
+GET /api/spaces/:name/stats
 ```
 
-**Response:**
-```json
-{
-  "hostname": "my-server",
-  "platform": "linux",
-  "arch": "x64",
-  "cpus": 12,
-  "loadAverage": [0.5, 0.3, 0.2],
-  "memory": {
-    "total": "24.0 GB",
-    "free": "18.0 GB",
-    "used": "6.0 GB",
-    "percentage": "25.0%"
-  },
-  "disk": {
-    "total": "500G",
-    "used": "200G",
-    "available": "300G",
-    "percentage": "40%"
-  },
-  "uptime": "5d 3h 20m",
-  "docker": {
-    "version": "24.0.0",
-    "containers": 10,
-    "containersRunning": 5,
-    "containersPaused": 2,
-    "images": 15
-  },
-  "capabilities": {
-    "gpu": true,
-    "gpuName": "NVIDIA GeForce RTX 3090",
-    "gpuMemory": "24576 MiB",
-    "arch": "x64",
-    "platform": "linux"
-  }
-}
-```
-
-### Get Capabilities Only
+### Files (scoped to /workspace)
 
 ```http
-GET /api/system/capabilities
+GET /api/spaces/:name/files?path=/
+GET /api/spaces/:name/file?path=/hello.txt
+PUT /api/spaces/:name/file?path=/hello.txt
 ```
 
-**Response:**
+Write body:
+
+```json
+{ "contentBase64": "aGkK" }
+```
+
+## Nodes
+
+Nodes are auto-discovered via Tailscale (unless `CLAWDSPACE_NODES` is set). The endpoint is cached server-side.
+
+```http
+GET /api/nodes
+```
+
+Response:
+
 ```json
 {
-  "gpu": true,
-  "gpuName": "NVIDIA GeForce RTX 3090",
-  "gpuMemory": "24576 MiB",
-  "arch": "x64",
-  "platform": "linux",
-  "cpus": 12,
-  "memory": 25769803776
+  "nodes": [
+    {
+      "name": "rtx3090",
+      "url": "http://rtx3090.tailnet.ts.net:7777",
+      "status": "online",
+      "latencyMs": 12,
+      "capabilities": { "gpu": true, "gpuName": "NVIDIA GeForce RTX 3090" }
+    }
+  ],
+  "lastUpdatedAt": 1730000000000
 }
 ```
 
-### Health Check
+## Audit
+
+```http
+GET /api/audit?space=my-space&limit=200
+```
+
+Events include:
+- `space.create`, `space.start`, `space.pause`, `space.destroy`
+- `space.exec` (API exec command)
+- `space.shell` (ingested from `/workspace/.bash_history`)
+- `terminal.open`, `terminal.close`
+
+## Health
 
 ```http
 GET /api/health
-```
-
-**Response:**
-```json
-{
-  "status": "ok",
-  "version": "1.0.0"
-}
-```
-
----
-
-## Error Responses
-
-All errors return:
-
-```json
-{
-  "error": "Error message here"
-}
-```
-
-| Status | Meaning |
-|--------|---------|
-| 400 | Bad request (invalid input) |
-| 401 | Unauthorized (invalid/missing API key) |
-| 404 | Space not found |
-| 409 | Conflict (space already exists) |
-| 500 | Server error |
-
----
-
-## Examples
-
-### Create a GPU Space for ML
-
-```bash
-curl -X POST http://localhost:7777/api/spaces \
-  -H "Authorization: Bearer YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "ml-training", "memory": "16g", "cpus": 8, "gpu": true}'
-```
-
-### Run PyTorch Training
-
-```bash
-curl -X POST http://localhost:7777/api/spaces/ml-training/exec \
-  -H "Authorization: Bearer YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"command": "python3 train.py --epochs 100"}'
-```
-
-### Check GPU Availability
-
-```bash
-curl -X POST http://localhost:7777/api/spaces/ml-training/exec \
-  -H "Authorization: Bearer YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"command": "python3 -c \"import torch; print(torch.cuda.is_available())\""}'
 ```
