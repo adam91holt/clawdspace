@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { SpacesPanel } from './components/SpacesPanel';
 import { SystemStats } from './components/SystemStats';
 import { NodesPanel } from './components/NodesPanel';
+import { ClusterStats } from './components/ClusterStats';
 import { CreateModal } from './components/CreateModal';
 import { ExecModal } from './components/ExecModal';
 import { Space, SystemInfo } from './types';
@@ -21,6 +22,7 @@ function App() {
   const [filesSpace, setFilesSpace] = useState<string | null>(null);
   const [auditSpace, setAuditSpace] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [nodes, setNodes] = useState<any[] | null>(null);
 
   const fetchSpaces = useCallback(async () => {
     try {
@@ -84,6 +86,10 @@ function App() {
         </span>
       </header>
 
+      <NodesPanel onNodes={setNodes} />
+
+      <ClusterStats nodes={nodes as any} />
+
       <SystemStats system={system} loading={loading} spacesCount={spaces.length} />
 
       <SpacesPanel
@@ -102,8 +108,6 @@ function App() {
         }}
         onAudit={(space) => setAuditSpace(space ?? '__all__')}
       />
-
-      <NodesPanel />
 
       {showCreate && (
         <CreateModal

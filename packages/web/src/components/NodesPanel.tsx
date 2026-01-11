@@ -22,10 +22,14 @@ function hostIcon(node: NodeInfo): string {
   return '🧠';
 }
 
-export function NodesPanel() {
+export function NodesPanel({ onNodes }: { onNodes?: (nodes: NodeInfo[] | null) => void }) {
   const [nodes, setNodes] = useState<NodeInfo[] | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    onNodes?.(nodes);
+  }, [nodes, onNodes]);
 
   useEffect(() => {
     let mounted = true;
@@ -110,7 +114,7 @@ export function NodesPanel() {
           No nodes found yet. Make sure Tailscale is running on this host, and other nodes are reachable on port 7777.
         </div>
       ) : (
-        <div className="node-grid">
+        <div className="node-grid node-grid-mobile">
           {sorted.map((n) => {
             const badge = nodeBadge(n);
             return (

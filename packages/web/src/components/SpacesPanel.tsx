@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 import { Space } from '../types';
 
 function formatBytes(bytes: number): string {
@@ -48,7 +49,8 @@ export function SpacesPanel({
   onPauseAll: (names: string[]) => void;
   onAudit: (space?: string) => void;
 }) {
-  const [view, setView] = useState<'table' | 'cards'>('table');
+  const isMobile = useMediaQuery('(max-width: 920px)');
+  const [view, setView] = useState<'table' | 'cards'>(isMobile ? 'cards' : 'table');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'running' | 'paused'>('all');
 
@@ -85,10 +87,12 @@ export function SpacesPanel({
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <div className="segmented">
-            <button className={`seg-btn ${view === 'table' ? 'active' : ''}`} onClick={() => setView('table')}>Table</button>
-            <button className={`seg-btn ${view === 'cards' ? 'active' : ''}`} onClick={() => setView('cards')}>Cards</button>
-          </div>
+          {!isMobile && (
+            <div className="segmented">
+              <button className={`seg-btn ${view === 'table' ? 'active' : ''}`} onClick={() => setView('table')}>Table</button>
+              <button className={`seg-btn ${view === 'cards' ? 'active' : ''}`} onClick={() => setView('cards')}>Cards</button>
+            </div>
+          )}
           <div className="segmented">
             <button className={`seg-btn ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>All</button>
             <button className={`seg-btn ${filter === 'running' ? 'active' : ''}`} onClick={() => setFilter('running')}>Running</button>
@@ -110,7 +114,7 @@ export function SpacesPanel({
         <div className="empty-state">
           No spaces match your filters.
         </div>
-      ) : view === 'table' ? (
+      ) : (isMobile ? 'cards' : view) === 'table' ? (
         <table className="spaces-table">
           <thead>
             <tr>
