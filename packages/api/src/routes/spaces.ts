@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import * as docker from '../docker';
 import { CreateSpaceRequest, ExecRequest } from '../types';
+import { validateRepoCloneRequest, ensureGithubAuthForUrl } from '../git';
 
 const router = Router();
 
@@ -17,7 +18,7 @@ router.get('/', async (_req: Request, res: Response) => {
 // POST /spaces - Create space
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { name, memory = '2g', cpus = 1, gpu = false, image } = req.body as CreateSpaceRequest;
+    const { name, memory = '2g', cpus = 1, gpu = false, image, repoUrl, repoBranch, repoDest } = req.body as CreateSpaceRequest;
 
     if (!name || !/^[a-zA-Z0-9_-]+$/.test(name)) {
       return res.status(400).json({ error: 'Invalid name (alphanumeric, _, - only)' });
@@ -30,6 +31,47 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     const space = await docker.createSpace(name, memory, cpus, gpu, image);
+
+    // Optional: clone repo into the new space workspace
+    let didClone = false;
+    let cloneMeta: Record<string, unknown> | undefined;
+
+    try {
+      const cloneReq = validateRepoCloneRequest({ repoUrl, repoBranch, repoDest } as any);
+      if (cloneReq) {
+        await ensureGithubAuthForUrl(cloneReq.repoUrl);
+
+        const dest = cloneReq.repoDest || 'repo';
+        const branchArg = cloneReq.repoBranch ? `-b ${cloneReq.repoBranch}` : '';
+
+        const cmd = [
+          'sh',
+          '-lc',
+          [
+            'set -e',
+            `cd /workspace`,
+            `rm -rf "${dest}"`,
+            `git clone ${branchArg} "${cloneReq.repoUrl}" "${dest}"`
+          ].join(' && ')
+        ];
+
+        const result = await docker.execInSpace(name, cmd);
+        if (result.exitCode !== 0) {
+          return res.status(400).json({ error: `Repo clone failed: ${result.stderr || result.stdout || 'unknown error'}` });
+        }
+
+        didClone = true;
+        cloneMeta = { repoUrl: cloneReq.repoUrl, repoBranch: cloneReq.repoBranch, repoDest: dest };
+      }
+    } catch (e) {
+      return res.status(400).json({ error: (e as Error).message });
+    }
+
+    if (didClone) {
+      docker.setLastActivity(name);
+      // NOTE: auditing of the clone itself is captured via the exec audit.
+    }
+
     res.status(201).json({ space });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -103,6 +145,16 @@ router.get('/:name/stats', async (req: Request, res: Response) => {
   try {
     const stats = await docker.getSpaceStats(req.params.name);
     res.json({ stats });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// GET /spaces/:name/observability - richer per-space observability snapshot
+router.get('/:name/observability', async (req: Request, res: Response) => {
+  try {
+    const snapshot = await docker.getSpaceObservability(req.params.name);
+    res.json({ observability: snapshot });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }

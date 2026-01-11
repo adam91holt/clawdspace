@@ -25,6 +25,19 @@ export interface SpaceStats {
   blockWriteBytes: number;
 }
 
+export interface SpaceObservability {
+  stats: SpaceStats;
+  workspaceDisk?: {
+    totalBytes?: number;
+    usedBytes?: number;
+    availBytes?: number;
+    usedPercent?: number;
+    path?: string;
+  };
+  workspaceSizeBytes?: number;
+  top?: Array<{ pid: number; cpu: number; mem: number; etime: string; command: string }>;
+  bashHistoryTail?: string;
+}
 
 export interface NodeInfo {
   name: string;

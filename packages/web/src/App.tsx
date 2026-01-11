@@ -11,6 +11,7 @@ import { SpaceStatsModal } from './components/SpaceStatsModal';
 import { FileBrowserModal } from './components/FileBrowserModal';
 import { TerminalModal } from './components/TerminalModal';
 import { AuditModal } from './components/AuditModal';
+import { ObservabilityModal } from './components/ObservabilityModal';
 
 function App() {
   const [spaces, setSpaces] = useState<Space[]>([]);
@@ -21,6 +22,7 @@ function App() {
   const [statsSpace, setStatsSpace] = useState<string | null>(null);
   const [filesSpace, setFilesSpace] = useState<string | null>(null);
   const [auditSpace, setAuditSpace] = useState<string | null>(null);
+  const [observabilitySpace, setObservabilitySpace] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [nodes, setNodes] = useState<any[] | null>(null);
 
@@ -54,8 +56,13 @@ function App() {
     };
   }, [fetchSpaces, fetchSystem]);
 
-  const handleCreate = async (name: string, memory: string, cpus: number) => {
-    await api.createSpace(name, memory, cpus);
+  const handleCreate = async (
+    name: string,
+    memory: string,
+    cpus: number,
+    repo?: { repoUrl: string; repoBranch?: string; repoDest?: string }
+  ) => {
+    await api.createSpace(name, memory, cpus, false, repo);
     setShowCreate(false);
     fetchSpaces();
   };
@@ -99,6 +106,7 @@ function App() {
         onTerminal={setTerminalSpace}
         onFiles={setFilesSpace}
         onStats={setStatsSpace}
+        onObservability={setObservabilitySpace}
         onStop={handleStop}
         onStart={handleStart}
         onDestroy={handleDestroy}
@@ -149,6 +157,13 @@ function App() {
         <AuditModal
           spaceName={auditSpace === '__all__' ? undefined : auditSpace}
           onClose={() => setAuditSpace(null)}
+        />
+      )}
+
+      {observabilitySpace && (
+        <ObservabilityModal
+          spaceName={observabilitySpace}
+          onClose={() => setObservabilitySpace(null)}
         />
       )}
 

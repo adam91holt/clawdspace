@@ -1,4 +1,4 @@
-import { Space, SystemInfo, ExecResult, SpaceStats, FileEntry, NodeInfo } from './types';
+import { Space, SystemInfo, ExecResult, SpaceStats, SpaceObservability, FileEntry, NodeInfo } from './types';
 
 function getStoredKey(): string {
   return (localStorage.getItem('clawdspace_key') || '').trim();
@@ -30,10 +30,16 @@ export const api = {
 
   getSpace: (name: string) => request<{ space: Space }>(`/spaces/${name}`),
 
-  createSpace: (name: string, memory: string, cpus: number, gpu: boolean = false) =>
+  createSpace: (
+    name: string,
+    memory: string,
+    cpus: number,
+    gpu: boolean = false,
+    repo?: { repoUrl: string; repoBranch?: string; repoDest?: string }
+  ) =>
     request<{ space: Space }>('/spaces', {
       method: 'POST',
-      body: JSON.stringify({ name, memory, cpus, gpu })
+      body: JSON.stringify({ name, memory, cpus, gpu, ...(repo || {}) })
     }),
 
   destroySpace: (name: string, removeVolume: boolean = false) =>
@@ -52,6 +58,9 @@ export const api = {
     }),
 
   getSpaceStats: (name: string) => request<{ stats: SpaceStats }>(`/spaces/${name}/stats`),
+
+  getSpaceObservability: (name: string) =>
+    request<{ observability: SpaceObservability }>(`/spaces/${name}/observability`),
 
   listFiles: (name: string, path: string) =>
     request<{ path: string; entries: FileEntry[] }>(`/spaces/${name}/files?path=${encodeURIComponent(path)}`),

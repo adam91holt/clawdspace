@@ -1,5 +1,5 @@
 import Docker from 'dockerode';
-import { ExecResult, FileEntry, Space, SpaceStats } from './types';
+import { ExecResult, FileEntry, Space, SpaceObservability, SpaceStats } from './types';
 import { writeAudit } from './audit';
 
 const docker = new Docker({ socketPath: '/var/run/docker.sock' });
@@ -544,6 +544,112 @@ export async function writeFile(name: string, relPath: string, contentBase64: st
   await writeAudit({ ts: new Date().toISOString(), space: name, type: 'space.file.write', meta: { path: relPath, bytes: approxBytes } });
 }
 
+export async function getWorkspaceUsage(name: string): Promise<{ disk?: SpaceObservability['workspaceDisk']; sizeBytes?: number }> {
+  const dfCmd = [
+    'python3',
+    '-c',
+    [
+      'import os, json, shutil',
+      `p="${WORKSPACE_MOUNT}"`,
+      'try:',
+      '  du=shutil.disk_usage(p)',
+      '  out={"disk":{"path":p,"totalBytes":du.total,"usedBytes":du.used,"availBytes":du.free,"usedPercent": (du.used/du.total*100 if du.total else 0)}}',
+      'except Exception as e:',
+      '  out={"disk":None,"error":str(e)}',
+      'print(json.dumps(out))'
+    ].join('\n')
+  ];
+
+  const sizeCmd = [
+    'sh',
+    '-lc',
+    // Prefer a fast du; ignore permission errors.
+    `du -sk ${WORKSPACE_MOUNT} 2>/dev/null | awk '{print $1}'`
+  ];
+
+  const [dfRes, sizeRes] = await Promise.all([execInSpace(name, dfCmd), execInSpace(name, sizeCmd)]);
+
+  let disk: SpaceObservability['workspaceDisk'] | undefined;
+  if (dfRes.exitCode === 0) {
+    try {
+      const parsed = JSON.parse(dfRes.stdout || '{}');
+      if (parsed?.disk) disk = parsed.disk;
+    } catch {
+      // ignore
+    }
+  }
+
+  let sizeBytes: number | undefined;
+  if (sizeRes.exitCode === 0) {
+    const kb = parseInt((sizeRes.stdout || '').trim(), 10);
+    if (!Number.isNaN(kb)) sizeBytes = kb * 1024;
+  }
+
+  return { disk, sizeBytes };
+}
+
+export async function getTopSnapshot(name: string, limit: number = 8): Promise<NonNullable<SpaceObservability['top']>> {
+  const n = Math.max(1, Math.min(25, Math.floor(limit)));
+
+  // Use ps inside the container; output in a stable, parseable format.
+  const cmd = [
+    'python3',
+    '-c',
+    [
+      'import json, subprocess, sys',
+      'limit=int(sys.argv[1])',
+      'p=subprocess.run(["ps","-eo","pid,%cpu,%mem,etime,comm","--sort=-%cpu"], capture_output=True, text=True)',
+      'lines=p.stdout.strip().split("\n")',
+      'out=[]',
+      'for line in lines[1:1+limit]:',
+      '  parts=line.strip().split(None, 4)',
+      '  if len(parts)<5: continue',
+      '  pid,cpu,mem,etime,comm=parts',
+      '  try:',
+      '    out.append({"pid":int(pid),"cpu":float(cpu),"mem":float(mem),"etime":etime,"command":comm})',
+      '  except: pass',
+      'print(json.dumps(out))'
+    ].join('\n'),
+    String(n)
+  ];
+
+  const res = await execInSpace(name, cmd);
+  if (res.exitCode !== 0) return [];
+  try {
+    const parsed = JSON.parse(res.stdout);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function tailBashHistory(name: string, lines: number = 50): Promise<string | undefined> {
+  const n = Math.max(1, Math.min(500, Math.floor(lines)));
+  const p = `${WORKSPACE_MOUNT}/.bash_history`;
+
+  const cmd = ['sh', '-lc', `test -f ${p} && tail -n ${n} ${p} || true`];
+  const res = await execInSpace(name, cmd);
+  if (res.exitCode !== 0) return undefined;
+  const out = (res.stdout || '').trim();
+  return out ? out : undefined;
+}
+
+export async function getSpaceObservability(name: string): Promise<SpaceObservability> {
+  const stats = await getSpaceStats(name);
+  const [usage, top, bashHistoryTail] = await Promise.all([
+    getWorkspaceUsage(name),
+    getTopSnapshot(name, 8),
+    tailBashHistory(name, 50)
+  ]);
+
+  return {
+    stats,
+    workspaceDisk: usage.disk,
+    workspaceSizeBytes: usage.sizeBytes,
+    top,
+    bashHistoryTail
+  };
+}
 
 // Auto-sleep worker
 export function startAutoSleepWorker(idleTimeoutMs: number = 10 * 60 * 1000): NodeJS.Timeout {

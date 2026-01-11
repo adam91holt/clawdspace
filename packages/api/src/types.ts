@@ -53,6 +53,25 @@ export interface CreateSpaceRequest {
   cpus?: number;
   gpu?: boolean;
   image?: string;
+
+  // Optional: seed the space by cloning a repo into /workspace.
+  repoUrl?: string;
+  repoBranch?: string;
+  repoDest?: string;
+}
+
+export interface SpaceObservability {
+  stats: SpaceStats;
+  workspaceDisk?: {
+    totalBytes?: number;
+    usedBytes?: number;
+    availBytes?: number;
+    usedPercent?: number;
+    path?: string;
+  };
+  workspaceSizeBytes?: number;
+  top?: Array<{ pid: number; cpu: number; mem: number; etime: string; command: string }>;
+  bashHistoryTail?: string;
 }
 
 export interface ExecRequest {
