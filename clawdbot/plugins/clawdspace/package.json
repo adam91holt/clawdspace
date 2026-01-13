@@ -1,0 +1,13 @@
+{
+  "name": "@clawdbot/clawdspace",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Clawdbot plugin for controlling Clawdspace sandboxes",
+  "dependencies": {
+    "@sinclair/typebox": "0.34.47",
+    "zod": "^4.3.5"
+  },
+  "clawdbot": {
+    "extensions": ["./index.ts"]
+  }
+}
