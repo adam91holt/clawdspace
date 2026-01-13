@@ -4,10 +4,17 @@
 
 ```mermaid
 flowchart LR
-  UI[Web Dashboard] -->|REST| API[Clawdspace API]
+  %% Clients
+  AGENT[Clawdbot Agent] -->|tool call: clawdspace| PLUGIN[Clawdspace Extension (Clawdbot)]
+  CLI[clawdspace CLI] -->|REST| API
+  UI[Web Dashboard] -->|REST| API
   UI -->|WebSocket terminal| API
 
-  API -->|Docker socket| DOCKER[Docker Engine]
+  %% Clawdbot side
+  PLUGIN -->|REST (API key)| API
+
+  %% Clawdspace node
+  API[Clawdspace API] -->|Docker socket| DOCKER[Docker Engine]
   DOCKER -->|containers| SPACE[Spaces]
   DOCKER -->|named volumes| VOL[Per-space volumes]
 
@@ -20,6 +27,12 @@ flowchart LR
 
   API -->|optional| FW[Host egress firewall]
 ```
+
+## Clawdbot plugin fit
+
+- The Clawdbot extension (snapshot in `clawdbot/plugins/clawdspace/`) registers the `clawdspace` tool.
+- Tool actions (e.g. `create_space`, `exec`, `files_get/put`, `list_spaces`, `templates_*`) are translated into HTTP calls to the Clawdspace API (`/api/...`).
+- This gives agents a first-class “sandbox primitive” without needing SSH or the local `clawdspace` CLI.
 
 ## Key ideas
 
