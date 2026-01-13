@@ -14,6 +14,7 @@
 - 🎮 **GPU support** — opt-in GPU spaces (where available)
 - 🧩 **Templates** — presets for resources/image/network posture
 - 📝 **Audit + history** — API audit + bash history ingestion (`/workspace/.bash_history`)
+- 🧠 **Clawdbot tool integration** — agents can call Clawdspace via a native tool
 
 ---
 
@@ -21,10 +22,17 @@
 
 ```mermaid
 flowchart LR
-  UI[Web Dashboard] -->|REST| API[Clawdspace API]
+  %% Clients
+  AGENT[Clawdbot Agent] -->|tool call: clawdspace| PLUGIN[Clawdspace Extension (Clawdbot)]
+  CLI[clawdspace CLI] -->|REST| API
+  UI[Web Dashboard] -->|REST| API
   UI -->|WebSocket terminal| API
 
-  API -->|Docker socket| DOCKER[Docker Engine]
+  %% Clawdbot side
+  PLUGIN -->|REST (API key)| API
+
+  %% Clawdspace node
+  API[Clawdspace API] -->|Docker socket| DOCKER[Docker Engine]
   DOCKER -->|containers| SPACE[Spaces]
   DOCKER -->|named volumes| VOL[Per-space volumes]
 
