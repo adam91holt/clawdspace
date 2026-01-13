@@ -5,13 +5,13 @@
 ```mermaid
 flowchart LR
   %% Clients
-  AGENT[Clawdbot Agent] -->|tool call: clawdspace| PLUGIN[Clawdspace Extension (Clawdbot)]
+  AGENT[Clawdbot Agent] -->|tool call: clawdspace| PLUGIN[Clawdspace Extension<br/>Clawdbot]
   CLI[clawdspace CLI] -->|REST| API
   UI[Web Dashboard] -->|REST| API
   UI -->|WebSocket terminal| API
 
   %% Clawdbot side
-  PLUGIN -->|REST (API key)| API
+  PLUGIN -->|REST - API key| API
 
   %% Clawdspace node
   API[Clawdspace API] -->|Docker socket| DOCKER[Docker Engine]
