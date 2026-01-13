@@ -40,7 +40,11 @@ export async function startTerminalSession({
   const container = docker.getContainer(containerInfo.Id);
   const info = await container.inspect();
   if (info.State.Paused) {
-    await container.unpause();
+    try {
+      await container.unpause();
+    } catch {
+      // Best-effort: container might have been unpaused concurrently.
+    }
   }
 
   const exec = await container.exec({

@@ -317,7 +317,11 @@ export async function startSpace(name: string): Promise<void> {
 
   const info = await container.inspect();
   if (info.State.Paused) {
-    await container.unpause();
+    try {
+      await container.unpause();
+    } catch {
+      // Best-effort: container might have been unpaused concurrently.
+    }
   } else if (!info.State.Running) {
     await container.start();
   }
@@ -336,7 +340,11 @@ export async function execInSpace(
 
   const info = await container.inspect();
   if (info.State.Paused) {
-    await container.unpause();
+    try {
+      await container.unpause();
+    } catch {
+      // Best-effort: container might have been unpaused concurrently.
+    }
   }
 
   const cmd = Array.isArray(command) ? command : ['sh', '-c', command];

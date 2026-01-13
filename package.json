@@ -12,7 +12,10 @@
     "build:api": "npm run build -w @clawdspace/api",
     "build:web": "npm run build -w @clawdspace/web",
     "build": "npm run build:web && npm run build:api",
-    "start": "npm run start -w @clawdspace/api"
+    "start": "npm run start -w @clawdspace/api",
+    "test": "npm run test:api",
+    "test:api": "npm run test -w @clawdspace/api",
+    "test:web": "npm run build -w @clawdspace/web"
   },
   "repository": {
     "type": "git",

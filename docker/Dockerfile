@@ -41,8 +41,10 @@ RUN mkdir -p /workspace && chown -R 1001:1001 /workspace \
     'export HISTFILESIZE=200000' \
     'export HISTCONTROL=ignoreboth' \
     "export HISTTIMEFORMAT='%s '" \
-    'shopt -s histappend' \
-    'export PROMPT_COMMAND="history -a; history -n; ${PROMPT_COMMAND}"' \
+    'if [ -n "$BASH_VERSION" ]; then' \
+    '  shopt -s histappend' \
+    '  export PROMPT_COMMAND="history -a; history -n; ${PROMPT_COMMAND}"' \
+    'fi' \
     > /etc/profile.d/clawdspace_history.sh
 
 # Switch to sandbox user
