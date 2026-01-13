@@ -12,6 +12,7 @@
 - 🌐 **Dashboard** — spaces, stats, files, terminal, audit log (mobile-friendly)
 - 🧭 **Multi-node (Tailscale)** — auto-discovery + cached node health
 - 🎮 **GPU support** — opt-in GPU spaces (where available)
+- 🧩 **Templates** — presets for resources/image/network posture
 - 📝 **Audit + history** — API audit + bash history ingestion (`/workspace/.bash_history`)
 
 ---
@@ -20,7 +21,9 @@
 
 ```mermaid
 flowchart LR
-  UI[Web Dashboard] -->|REST + WS| API[Clawdspace API]
+  UI[Web Dashboard] -->|REST| API[Clawdspace API]
+  UI -->|WebSocket terminal| API
+
   API -->|Docker socket| DOCKER[Docker Engine]
   DOCKER -->|containers| SPACE[Spaces]
   DOCKER -->|named volumes| VOL[Per-space volumes]
@@ -39,7 +42,6 @@ flowchart LR
 
 For a more detailed guide, see `docs/SETUP.md`.
 
-
 ### 1) Prerequisites
 
 - Docker installed and running
@@ -56,19 +58,11 @@ cd clawdspace
 
 For now, Clawdspace uses a single shared secret string.
 
-Generate one:
-
 ```bash
 python3 - <<'PY'
 import secrets
 print('clawdspace_sk_live_' + secrets.token_hex(16))
 PY
-```
-
-Example:
-
-```
-clawdspace_sk_live_... (keep this private)
 ```
 
 ### 4) Build the sandbox image
@@ -104,7 +98,7 @@ Clawdspace discovers nodes using `tailscale status --json` and probes each peer 
 - `/api/nodes` is cached server-side (fast dashboard loads)
 - To add a node: run the Clawdspace API on that machine (same `API_KEY`) and ensure it’s reachable over Tailscale
 
-You can override discovery with:
+Override discovery:
 
 ```
 CLAWDSPACE_NODES=name=http://host:7777,other=http://host2:7777
@@ -118,6 +112,10 @@ The server supports either:
 
 - **Query param**: `?key=YOUR_KEY` (recommended for browsers)
 - **Header**: `Authorization: Bearer YOUR_KEY` (best for curl/CLI)
+
+Dev only:
+
+- Disable auth with `CLAWDSPACE_AUTH_DISABLED=true`
 
 ---
 
@@ -145,13 +143,22 @@ clawdspace dashboard
 
 ## Key API endpoints
 
+- Health + system
+  - `GET /api/health`
+  - `GET /api/system`
+  - `GET /api/system/capabilities`
 - Spaces
   - `GET /api/spaces`
-  - `POST /api/spaces`
+  - `POST /api/spaces` (supports `template`, optional repo clone + envfile write)
   - `POST /api/spaces/:name/exec`
   - `GET /api/spaces/:name/stats`
+  - `GET /api/spaces/:name/observability`
   - `GET /api/spaces/:name/files?path=/`
   - `GET/PUT /api/spaces/:name/file?path=/foo.txt`
+  - `POST /api/spaces/:name/git/push`
+- Templates
+  - `GET /api/templates`
+  - `PUT /api/templates`
 - Nodes
   - `GET /api/nodes`
 - Audit
@@ -165,6 +172,16 @@ clawdspace dashboard
   - `GET /api/spaces/:name/terminal?key=YOUR_KEY`
 - The terminal runs `bash -l`
 - Bash history is written to `/workspace/.bash_history` and ingested into the audit log
+
+---
+
+## Clawdbot integration
+
+A snapshot of the Clawdbot extension that exposes Clawdspace as a native tool lives here:
+
+- `clawdbot/plugins/clawdspace/`
+
+This is the code that maps tool actions like `create_space`, `exec`, `files_get/put`, `list_spaces`, etc. to the Clawdspace HTTP API.
 
 ---
 

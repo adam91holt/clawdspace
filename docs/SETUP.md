@@ -16,8 +16,12 @@ PY
 Set it when starting the API:
 
 ```bash
-API_KEY="clawdspace_sk_live_..." PORT=7777 node dist/index.js
+PORT=7777 API_KEY="clawdspace_sk_live_..." node dist/index.js
 ```
+
+Dev only:
+
+- Disable auth entirely: `CLAWDSPACE_AUTH_DISABLED=true`
 
 ## Build and run
 
@@ -56,9 +60,22 @@ Optional overrides:
 CLAWDSPACE_NODES=oracle=http://localhost:7777,rtx=http://rtx3090.tailnet.ts.net:7777
 ```
 
+## Environment variables (node)
+
+Common:
+- `PORT` (default `7777`)
+- `API_KEY` (default `clawdspace_dev_key`)
+- `CLAWDSPACE_AUTH_DISABLED` (`true` disables auth; dev only)
+- `IDLE_TIMEOUT_MS` (default `600000` / 10 minutes)
+- `NODES_REFRESH_MS` (default `30000`)
+- `HISTORY_INGEST_MS` (default `15000`)
+- `CLAWDSPACE_NODES` (manual node list)
+
+GPU defaults:
+- `CLAWDSPACE_GPU_IMAGE` (default GPU image name)
+
 ## WSL notes
 
 If you run a node in WSL:
 - Make sure the process starts automatically.
 - Prefer enabling systemd in WSL and installing a service.
-
